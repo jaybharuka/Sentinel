@@ -1,8 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { getCurrentMerchant } from "@/lib/currentMerchant";
 
 const VALID_DECISIONS = ["allow", "hold_for_review", "auto_refund"];
 
 export async function GET(request) {
+  const merchant = await getCurrentMerchant();
+  if (!merchant) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
 
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
@@ -11,7 +17,7 @@ export async function GET(request) {
   const policyDecision = searchParams.get("policyDecision");
   const usedFallbackParam = searchParams.get("usedFallback");
 
-  const where = {};
+  const where = { merchantId: merchant.id };
   if (VALID_DECISIONS.includes(policyDecision)) {
     where.policyDecision = policyDecision;
   }

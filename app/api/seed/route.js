@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ingestTransaction } from "@/lib/ingestTransaction";
+import { getCurrentMerchant } from "@/lib/currentMerchant";
 
 // Dev-only convenience endpoint: replays the synthetic labeled dataset
 // through the real ingest pipeline (Gemini + fallback + policy gate) so
@@ -8,6 +9,12 @@ import { ingestTransaction } from "@/lib/ingestTransaction";
 const DELAY_MS = 300;
 
 export async function POST() {
+  // Scoped to whichever merchant is logged in when this is called, so
+  // each new signup can seed their own test data. Falls back to the
+  // original default merchant (ingestTransaction's own default) when
+  // called without a session, e.g. via curl during testing.
+  const merchant = await getCurrentMerchant();
+
   const datasetPath = path.join(process.cwd(), "data", "syntheticTransactions.json");
   const dataset = JSON.parse(fs.readFileSync(datasetPath, "utf-8"));
 
@@ -17,7 +24,7 @@ export async function POST() {
   const errorSamples = [];
 
   for (let i = 0; i < dataset.length; i++) {
-    const event = dataset[i];
+    const event = merchant ? { ...dataset[i], merchantId: merchant.id } : dataset[i];
     try {
       const { usedFallback } = await ingestTransaction(event);
       processed++;

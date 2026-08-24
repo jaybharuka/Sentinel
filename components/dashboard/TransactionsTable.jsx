@@ -69,11 +69,33 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                   className="cursor-pointer"
                   onClick={() => setExpandedId(isExpanded ? null : row.id)}
                 >
-                  <TableCell className="font-mono text-xs">{row.txnId}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {row.txnId}
+                    {row.source === "razorpay_live" && (
+                      <Badge variant="success" className="ml-2">
+                        live
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{formatINR(row.amount)}</TableCell>
                   <TableCell>{row.riskScore != null ? row.riskScore.toFixed(2) : "—"}</TableCell>
                   <TableCell><DecisionBadge decision={row.policyDecision} /></TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{row.actionTaken}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {row.actionTaken}
+                    {row.actionTaken === "auto_refund" && (
+                      <span className="ml-1">
+                        {row.refundExecuted ? (
+                          <span title={`Refund ${row.refundId}`} className="text-success">
+                            ✓ refunded
+                          </span>
+                        ) : (
+                          <span title={row.refundError || "unknown error"} className="text-destructive">
+                            ✗ refund failed
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell><SourceBadge usedFallback={row.usedFallback} /></TableCell>
                   <TableCell>
                     {row.isLabeledFraud === true && <Badge variant="destructive">fraud</Badge>}
@@ -109,6 +131,19 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                           confidence: {row.confidence != null ? row.confidence.toFixed(2) : "—"} · email:{" "}
                           {row.email} · ip: {row.ipCountry} → billing: {row.billingCountry}
                         </div>
+                        {row.actionTaken === "auto_refund" && (
+                          <div className="text-xs pt-1">
+                            {row.refundExecuted ? (
+                              <span className="text-success">
+                                Refund executed — Razorpay refund ID: {row.refundId}
+                              </span>
+                            ) : (
+                              <span className="text-destructive">
+                                Refund NOT executed: {row.refundError || "unknown error"}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

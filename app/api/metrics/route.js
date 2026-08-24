@@ -1,8 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { getCurrentMerchant } from "@/lib/currentMerchant";
 
 export async function GET() {
+  const merchant = await getCurrentMerchant();
+  if (!merchant) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const rows = await prisma.transaction.findMany({
-    where: { isLabeledFraud: { not: null } },
+    where: { merchantId: merchant.id, isLabeledFraud: { not: null } },
   });
 
   let truePositives = 0;
