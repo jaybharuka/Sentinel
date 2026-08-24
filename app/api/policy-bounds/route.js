@@ -17,6 +17,12 @@ export async function GET() {
   // lib/ingestTransaction.js, so this panel always agrees with what's
   // actually being enforced - and so clicking the demo auto_refund button
   // never visibly moves this gauge (no real money moved).
+  //
+  // This counts approved auto_refund *decisions*, not confirmed successful
+  // Razorpay refunds - a failed real refund still consumes budget. That's
+  // intentional (see lib/ingestTransaction.js), so the field is named
+  // "Authorized" rather than "Refunded" to avoid implying every ₹ here was
+  // actually paid out.
   const agg = await prisma.transaction.aggregate({
     _sum: { amount: true },
     where: {
@@ -33,6 +39,6 @@ export async function GET() {
     minRiskScore: settings.autoRefundMinRiskScore,
     minConfidence: settings.autoRefundMinConfidence,
     holdThreshold: settings.holdForReviewMinRiskScore,
-    dailyRefundedToday: agg._sum.amount || 0,
+    dailyAuthorizedToday: agg._sum.amount || 0,
   });
 }

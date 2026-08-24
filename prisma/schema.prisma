@@ -44,7 +44,7 @@ model Transaction {
   isLabeledFraud Boolean?
   source         String   @default("synthetic")
   disputedAt     DateTime?
-  refundExecuted Boolean  @default(false)
+  refundExecuted Boolean?
   refundId       String?
   refundError    String?
 

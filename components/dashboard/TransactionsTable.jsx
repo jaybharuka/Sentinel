@@ -38,6 +38,32 @@ function SourceBadge({ usedFallback }) {
   );
 }
 
+// refundExecuted is a real tri-state: true (confirmed success), false (no
+// attempt, or a confirmed failure), null (decision made, Razorpay call not
+// yet resolved - a real window since the transaction row now exists before
+// that call completes, not after).
+function RefundStatus({ refundExecuted, refundId, refundError }) {
+  if (refundExecuted === null) {
+    return (
+      <span title="Refund call in progress" className="text-muted-foreground">
+        … pending
+      </span>
+    );
+  }
+  if (refundExecuted) {
+    return (
+      <span title={`Refund ${refundId}`} className="text-success">
+        ✓ refunded
+      </span>
+    );
+  }
+  return (
+    <span title={refundError || "unknown error"} className="text-destructive">
+      ✗ refund failed
+    </span>
+  );
+}
+
 export function TransactionsTable({ rows, emptyMessage = "No transactions match these filters." }) {
   const [expandedId, setExpandedId] = useState(null);
 
@@ -84,15 +110,11 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                     {row.actionTaken}
                     {row.actionTaken === "auto_refund" && (
                       <span className="ml-1">
-                        {row.refundExecuted ? (
-                          <span title={`Refund ${row.refundId}`} className="text-success">
-                            ✓ refunded
-                          </span>
-                        ) : (
-                          <span title={row.refundError || "unknown error"} className="text-destructive">
-                            ✗ refund failed
-                          </span>
-                        )}
+                        <RefundStatus
+                          refundExecuted={row.refundExecuted}
+                          refundId={row.refundId}
+                          refundError={row.refundError}
+                        />
                       </span>
                     )}
                   </TableCell>
@@ -133,7 +155,11 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                         </div>
                         {row.actionTaken === "auto_refund" && (
                           <div className="text-xs pt-1">
-                            {row.refundExecuted ? (
+                            {row.refundExecuted === null ? (
+                              <span className="text-muted-foreground">
+                                Refund authorized — Razorpay call in progress, outcome not yet known
+                              </span>
+                            ) : row.refundExecuted ? (
                               <span className="text-success">
                                 Refund executed — Razorpay refund ID: {row.refundId}
                               </span>

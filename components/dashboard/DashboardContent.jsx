@@ -191,16 +191,16 @@ export function DashboardContent() {
 
             <Card>
               <CardHeader>
-                <CardDescription>Today's refund budget used</CardDescription>
+                <CardDescription>Today's auto-refund budget authorized</CardDescription>
                 <CardTitle className="text-lg">
-                  {formatINR(bounds.dailyRefundedToday)} / {formatINR(bounds.dailyRefundCap)}
+                  {formatINR(bounds.dailyAuthorizedToday)} / {formatINR(bounds.dailyRefundCap)}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-2">
                 {(() => {
                   const pct = Math.min(
                     100,
-                    (bounds.dailyRefundedToday / bounds.dailyRefundCap) * 100
+                    (bounds.dailyAuthorizedToday / bounds.dailyRefundCap) * 100
                   );
                   const barColor = pct >= 80 ? "bg-warning" : "bg-success";
                   return (
@@ -212,6 +212,11 @@ export function DashboardContent() {
                     </div>
                   );
                 })()}
+                <p className="text-muted-foreground text-xs">
+                  Counts approved auto_refund decisions, not confirmed successful Razorpay
+                  refunds — a failed real refund still consumes budget, so a retry can't open
+                  more room than was actually authorized.
+                </p>
               </CardContent>
             </Card>
 
