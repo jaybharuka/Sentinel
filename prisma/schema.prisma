@@ -10,8 +10,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Merchant {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  settings     MerchantSettings?
+  transactions Transaction[]
+  alerts       Alert[]
+}
+
 model Transaction {
   id             Int      @id @default(autoincrement())
+  merchantId     String
+  merchant       Merchant @relation(fields: [merchantId], references: [id])
   txnId          String   @unique
   amount         Float
   email          String
@@ -28,7 +42,43 @@ model Transaction {
   actionTaken    String?
   humanOverride  Boolean  @default(false)
   isLabeledFraud Boolean?
+  source         String   @default("synthetic")
+  disputedAt     DateTime?
+  refundExecuted Boolean  @default(false)
+  refundId       String?
+  refundError    String?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  alerts         Alert[]
+}
+
+model Alert {
+  id            Int      @id @default(autoincrement())
+  merchantId    String
+  merchant      Merchant @relation(fields: [merchantId], references: [id])
+  transactionId Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  sentTo        String
+  subject       String
+  body          String
+  emailSent     Boolean  @default(false)
+  emailError    String?
+  createdAt     DateTime @default(now())
+}
+
+model MerchantSettings {
+  id                        Int      @id @default(autoincrement())
+  merchantId                String   @unique
+  merchant                  Merchant @relation(fields: [merchantId], references: [id])
+  autoRefundMaxAmount       Int      @default(2000)
+  dailyRefundCap            Int      @default(10000)
+  autoRefundMinRiskScore    Float    @default(0.9)
+  autoRefundMinConfidence   Float    @default(0.8)
+  holdForReviewMinRiskScore Float    @default(0.6)
+  alertEmail                String?
+  apiKey                    String?  @unique
+
+  updatedAt                 DateTime @updatedAt
 }
