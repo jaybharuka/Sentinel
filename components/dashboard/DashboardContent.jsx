@@ -68,6 +68,7 @@ function formatDateTime(value) {
 export function DashboardContent() {
   const [bounds, setBounds] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const [pendingRefunds, setPendingRefunds] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [recentRows, setRecentRows] = useState([]);
   const [auditRows, setAuditRows] = useState([]);
@@ -87,6 +88,7 @@ export function DashboardContent() {
       .then((data) => setRecentRows(data.rows || []))
       .catch(() => {});
     refetchAlerts();
+    refetchPendingRefunds();
   }
 
   async function runDemo() {
@@ -117,6 +119,17 @@ export function DashboardContent() {
 
   useEffect(() => {
     refetchBounds();
+  }, []);
+
+  function refetchPendingRefunds() {
+    fetch("/api/pending-refunds")
+      .then((res) => res.json())
+      .then(setPendingRefunds)
+      .catch(() => setPendingRefunds(null));
+  }
+
+  useEffect(() => {
+    refetchPendingRefunds();
   }, []);
 
   function refetchAlerts() {
@@ -227,6 +240,31 @@ export function DashboardContent() {
           </>
         )}
       </section>
+
+      {/* Pending refunds */}
+      {pendingRefunds && pendingRefunds.count > 0 && (
+        <section className="space-y-3 rounded-lg border-2 border-warning p-4">
+          <div>
+            <h2 className="text-lg font-medium">
+              Pending refunds <Badge variant="warning">{pendingRefunds.count}</Badge>
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Decision made, Razorpay call not yet resolved — usually just a call in flight,
+              but if one stays here it means the process was interrupted mid-refund and this
+              row needs a manual check against Razorpay's dashboard.
+            </p>
+          </div>
+          <div className="rounded-lg border divide-y">
+            {pendingRefunds.rows.map((row) => (
+              <div key={row.id} className="flex items-center justify-between gap-4 px-4 py-2 text-sm">
+                <span className="font-mono text-xs">{row.txnId}</span>
+                <span>{formatINR(row.amount)}</span>
+                <span className="text-muted-foreground text-xs">{formatDateTime(row.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Metrics panel */}
       <section className="space-y-3">
