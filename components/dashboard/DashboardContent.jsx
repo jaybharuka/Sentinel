@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
+
+const HOW_IT_WORKS_SEEN_KEY = "sentinel_how_it_works_seen";
 
 const DEMO_SCENARIOS = [
   { value: "clean", label: "Clean transaction" },
@@ -40,11 +43,14 @@ function formatINR(value) {
   return `₹${Number(value ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
-function StatCard({ label, value, caption }) {
+function StatCard({ label, value, caption, info }) {
   return (
     <Card>
       <CardHeader>
-        <CardDescription>{label}</CardDescription>
+        <CardDescription className="flex items-center gap-1">
+          {label}
+          {info && <InfoTooltip text={info} />}
+        </CardDescription>
         <CardTitle className="text-3xl">{value}</CardTitle>
       </CardHeader>
       {caption && (
@@ -66,6 +72,7 @@ function formatDateTime(value) {
 }
 
 export function DashboardContent() {
+  const [howItWorksOpen, setHowItWorksOpen] = useState(true);
   const [bounds, setBounds] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [pendingRefunds, setPendingRefunds] = useState(null);
@@ -109,6 +116,19 @@ export function DashboardContent() {
       setDemoLoading(false);
     }
   }
+
+  useEffect(() => {
+    try {
+      const seen = window.localStorage.getItem(HOW_IT_WORKS_SEEN_KEY);
+      if (seen) {
+        setHowItWorksOpen(false);
+      } else {
+        window.localStorage.setItem(HOW_IT_WORKS_SEEN_KEY, "1");
+      }
+    } catch {
+      // localStorage unavailable (private browsing, etc.) - default to open, harmless.
+    }
+  }, []);
 
   function refetchBounds() {
     fetch("/api/policy-bounds")
@@ -185,6 +205,32 @@ export function DashboardContent() {
         </p>
       </div>
 
+      {/* How this works */}
+      <section className="rounded-lg border bg-muted/30">
+        <button
+          type="button"
+          onClick={() => setHowItWorksOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="text-sm font-medium">How this works</span>
+          <span className="text-muted-foreground text-xs">{howItWorksOpen ? "Hide ▲" : "Show ▼"}</span>
+        </button>
+        {howItWorksOpen && (
+          <div className="px-4 pb-4 text-sm text-muted-foreground space-y-1">
+            <p>
+              A payment comes in → Gemini (or a backup rule-based system if Gemini is
+              unavailable) scores it for fraud risk and explains why → a separate, simple set of
+              rules decides what happens (allow it, flag it for human review, or auto-refund it).
+            </p>
+            <p>
+              The AI can only <em>suggest</em> — a fixed set of hard-coded rules is the only thing
+              that can actually approve moving real money, and those rules are visible below.
+              Everything that happens is logged in the audit trail at the bottom of this page.
+            </p>
+          </div>
+        )}
+      </section>
+
       {/* Policy bounds panel */}
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Policy Bounds</h2>
@@ -193,13 +239,26 @@ export function DashboardContent() {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatCard label="Max single auto-refund" value={formatINR(bounds.maxSingleRefund)} />
-              <StatCard label="Daily refund budget" value={formatINR(bounds.dailyRefundCap)} />
+              <StatCard
+                label="Max single auto-refund"
+                value={formatINR(bounds.maxSingleRefund)}
+                info="The system will never auto-refund more than this amount in a single transaction, no matter how confident the AI is."
+              />
+              <StatCard
+                label="Daily refund budget"
+                value={formatINR(bounds.dailyRefundCap)}
+                info="A hard ceiling on total auto-refunds per day across all transactions — once hit, everything else gets flagged for a human instead."
+              />
               <StatCard
                 label="Auto-refund requires"
                 value={`risk > ${bounds.minRiskScore} AND confidence > ${bounds.minConfidence}`}
+                info="Both the risk score AND the confidence score have to clear their own bar before an auto-refund is even considered — one high number alone isn't enough."
               />
-              <StatCard label="Hold-for-review threshold" value={`risk > ${bounds.holdThreshold}`} />
+              <StatCard
+                label="Hold-for-review threshold"
+                value={`risk > ${bounds.holdThreshold}`}
+                info="Above this risk score, a transaction gets flagged for a human to look at, even if it doesn't qualify for auto-refund."
+              />
             </div>
 
             <Card>
@@ -284,7 +343,8 @@ export function DashboardContent() {
             <StatCard
               label="Fallback rate"
               value={formatPercent(metrics.fallbackRate)}
-              caption="Real Gemini free-tier throttling observed during testing — not a bug. Every one of those calls was caught and handled by the rule-based fallback, then still passed through the same policy gate."
+              info="How often the backup rule-based scorer ran instead of Gemini."
+              caption={`${formatPercent(metrics.fallbackRate)} of transactions were scored by the backup rule-based system instead of the AI, usually due to Gemini's free-tier rate limits — this is expected and demonstrates graceful failure handling, not a bug. Every one of those calls still passed through the same policy gate.`}
             />
           </div>
         )}
