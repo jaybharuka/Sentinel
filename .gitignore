@@ -45,3 +45,9 @@ next-env.d.ts
 # prisma
 /prisma/dev.db
 /prisma/dev.db.*
+
+# raw external datasets (150MB+, not ours to redistribute) - only the
+# derived sample in data/kaggleCreditCardSample.json is committed, see
+# scripts/sampleKaggleDataset.js
+/data/raw/
+creditcard.csv
