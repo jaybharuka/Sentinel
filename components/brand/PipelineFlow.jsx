@@ -10,8 +10,8 @@ const STAGES = [
   },
   {
     icon: Sparkles,
-    title: "Groq scores it",
-    body: "A risk score, a confidence level, and plain-English reasons — or a rule-based backup scorer if the model's unavailable.",
+    title: "Sentinel AI scores it",
+    body: "A risk score, a confidence level, and plain-English reasons, or a rule-based backup scorer if the model's unavailable.",
   },
   {
     icon: GitBranch,
@@ -21,7 +21,7 @@ const STAGES = [
   {
     icon: FileCheck2,
     title: "Logged, always",
-    body: "Every decision — and the reasoning behind it — lands in the audit trail, whether or not it moved money.",
+    body: "Every decision, and the reasoning behind it, lands in the audit trail, whether or not it moved money.",
   },
 ];
 

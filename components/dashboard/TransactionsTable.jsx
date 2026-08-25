@@ -29,7 +29,7 @@ function plainEnglishReason(reasons) {
 const COLUMN_INFO = {
   Risk: "The fraud risk score from 0 (no risk) to 1 (certain fraud), from the AI model or the backup rule-based system.",
   Decision: "What the policy gate decided to do about this transaction, based on the risk score and the merchant's configured bounds.",
-  Action: "What actually happened as a result of the decision — for auto-refund, whether the real Razorpay refund call succeeded.",
+  Action: "What actually happened as a result of the decision. For auto-refund, whether the real Razorpay refund call succeeded.",
   Source: "Whether the AI model scored this transaction directly, or the backup rule-based system did (usually because the model provider's rate limit was hit).",
   Signals: "How many of the 12 deterministic risk signals (see the Risk Signals panel above) looked risky on this specific transaction.",
 };
@@ -202,7 +202,7 @@ export function TransactionsTable({
                   </TableCell>
                   <TableCell className="font-mono text-xs">{formatINR(row.amount)}</TableCell>
                   <TableCell className="font-mono text-xs">
-                    {row.riskScore != null ? row.riskScore.toFixed(2) : "—"}
+                    {row.riskScore != null ? row.riskScore.toFixed(2) : "–"}
                   </TableCell>
                   <TableCell><SignalsBadge features={row.features} /></TableCell>
                   <TableCell><DecisionBadge decision={row.policyDecision} /></TableCell>
@@ -275,7 +275,7 @@ export function TransactionsTable({
                           ))}
                         </ul>
                         <div className="text-muted-foreground text-xs pt-1">
-                          confidence: {row.confidence != null ? row.confidence.toFixed(2) : "—"} · email:{" "}
+                          confidence: {row.confidence != null ? row.confidence.toFixed(2) : "–"} · email:{" "}
                           {row.email} · ip: {row.ipCountry} → billing: {row.billingCountry}
                         </div>
                         {row.features && (
@@ -312,11 +312,11 @@ export function TransactionsTable({
                           <div className="text-xs pt-1">
                             {row.refundExecuted === null ? (
                               <span className="text-muted-foreground">
-                                Refund authorized — Razorpay call in progress, outcome not yet known
+                                Refund authorized. Razorpay call in progress, outcome not yet known
                               </span>
                             ) : row.refundExecuted ? (
                               <span className="text-success">
-                                Refund executed — Razorpay refund ID: {row.refundId}
+                                Refund executed. Razorpay refund ID: {row.refundId}
                               </span>
                             ) : (
                               <span className="text-destructive">

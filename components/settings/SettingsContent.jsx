@@ -171,7 +171,7 @@ export function SettingsContent() {
             <CardTitle className="font-display text-xl">Public API key</CardTitle>
             <CardDescription>
               Read-only access to your transaction data via the versioned v1 API. Anyone with
-              this key can read your transaction data — treat it like a password.
+              this key can read your transaction data. Treat it like a password.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

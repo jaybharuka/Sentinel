@@ -51,7 +51,7 @@ const SOURCE_TABS = [
 ];
 
 function formatPercent(value) {
-  return value == null ? "—" : `${(value * 100).toFixed(1)}%`;
+  return value == null ? "–" : `${(value * 100).toFixed(1)}%`;
 }
 
 function formatINR(value) {
@@ -277,7 +277,7 @@ export function DashboardContent() {
         <p className="font-mono text-xs uppercase tracking-widest text-primary">Dashboard</p>
         <h1 className="mt-1 text-2xl font-semibold">Sentinel</h1>
         <p className="text-muted-foreground text-sm">
-          Explainable fraud &amp; chargeback risk guard — audit trail and held-out test metrics.
+          Explainable fraud &amp; chargeback risk guard, with an audit trail and held-out test metrics.
         </p>
       </div>
 
@@ -314,7 +314,7 @@ export function DashboardContent() {
                   auto-refund it).
                 </p>
                 <p>
-                  The AI can only <em>suggest</em> — a fixed set of hard-coded rules is the only
+                  The AI can only <em>suggest</em>. A fixed set of hard-coded rules is the only
                   thing that can actually approve moving real money, and those rules are visible
                   on the Policy &amp; Signals tab. Everything that happens is logged in the audit
                   trail on the Transactions tab.
@@ -371,7 +371,7 @@ export function DashboardContent() {
                   })()}
                   <p className="text-muted-foreground text-xs">
                     Counts approved auto_refund decisions, not confirmed successful Razorpay
-                    refunds — a failed real refund still consumes budget, so a retry can't open
+                    refunds. A failed real refund still consumes budget, so a retry can't open
                     more room than was actually authorized.
                   </p>
                 </CardContent>
@@ -387,9 +387,9 @@ export function DashboardContent() {
                   Pending refunds <Badge variant="warning">{pendingRefunds.count}</Badge>
                 </h2>
                 <p className="text-muted-foreground text-sm">
-                  Decision made, Razorpay call not yet resolved — usually just a call in flight,
-                  but if one stays here it means the process was interrupted mid-refund and this
-                  row needs a manual check against Razorpay's dashboard.
+                  Decision made, Razorpay call not yet resolved. Usually a call in flight, but if
+                  one stays here it means the process was interrupted mid-refund, and this row
+                  needs a manual check against Razorpay's dashboard.
                 </p>
               </div>
               <div className="rounded-lg border divide-y">
@@ -447,7 +447,7 @@ export function DashboardContent() {
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
                 <StatCard label="Precision" value={formatPercent(metrics.precision)} />
                 <StatCard label="Recall" value={formatPercent(metrics.recall)} />
-                <StatCard label="F1" value={metrics.f1 != null ? metrics.f1.toFixed(3) : "—"} />
+                <StatCard label="F1" value={metrics.f1 != null ? metrics.f1.toFixed(3) : "–"} />
                 <StatCard
                   label="False-positive cost"
                   value={formatINR(metrics.falsePositiveCost)}
@@ -457,7 +457,7 @@ export function DashboardContent() {
                   label="Fallback rate"
                   value={formatPercent(metrics.fallbackRate)}
                   info="How often the backup rule-based scorer ran instead of the AI model."
-                  caption={`${formatPercent(metrics.fallbackRate)} of transactions were scored by the backup rule-based system instead of the AI, usually due to the model provider's rate limits — this is expected and demonstrates graceful failure handling, not a bug. Every one of those calls still passed through the same policy gate.`}
+                  caption={`${formatPercent(metrics.fallbackRate)} of transactions were scored by the backup rule-based system instead of the AI, usually due to rate limits on the model provider. This is expected and demonstrates graceful failure handling, not a bug. Every one of those calls still passed through the same policy gate.`}
                 />
               </div>
             )}
@@ -474,16 +474,16 @@ export function DashboardContent() {
             <div>
               <h2 className="text-lg font-medium">External Benchmark (Kaggle Credit Card Fraud Dataset)</h2>
               <p className="text-muted-foreground text-sm">
-                Run against a real, publicly available, independently-labeled fraud dataset (not
-                authored by us) — feature mapping is necessarily partial since this dataset's
-                fields are anonymized; see methodology note below.
+                Run against a real, publicly available, independently-labeled fraud dataset not
+                authored by us. Feature mapping is necessarily partial since this dataset's
+                fields are anonymized; see the methodology note below.
               </p>
             </div>
             {!benchmarkMetrics ? (
               <p className="text-muted-foreground text-sm">Loading benchmark metrics…</p>
             ) : benchmarkMetrics.totalScored === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Not yet run — see scripts/sampleKaggleDataset.js and
+                Not yet run. See scripts/sampleKaggleDataset.js and
                 app/api/seed/kaggle-benchmark.
               </p>
             ) : (
@@ -493,7 +493,7 @@ export function DashboardContent() {
                   <StatCard label="Recall" value={formatPercent(benchmarkMetrics.recall)} />
                   <StatCard
                     label="F1"
-                    value={benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "—"}
+                    value={benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "–"}
                   />
                   <StatCard
                     label="Scored so far"
@@ -525,24 +525,24 @@ export function DashboardContent() {
                       </a>
                       ) only exposes <code className="font-mono text-xs">Time</code>,{" "}
                       <code className="font-mono text-xs">Amount</code>, and 28 PCA-anonymized
-                      columns published specifically so no one — including us — can recover what
+                      columns published specifically so no one, including us, can recover what
                       they represent. Of our 12 signals, only two have an honest equivalent here:
                       the raw amount, and an approximate odd-hour signal derived from elapsed
                       time. The other ten (velocity, chargeback history, merchant context,
-                      account age, and the rest) simply don't exist for this data — there's no
-                      customer, email, or merchant history to compute them from, so they're
-                      omitted rather than defaulted to a fake "clean" value.
+                      account age, and the rest) don't exist for this data. There's no customer,
+                      email, or merchant history to compute them from, so they're omitted rather
+                      than defaulted to a fake "clean" value.
                     </p>
                     <p>
                       With only two weak signals available, the system correctly never crosses
-                      its hold-for-review threshold on this sample — 0% recall, and precision is
+                      its hold-for-review threshold on this sample: 0% recall, and precision is
                       undefined because zero positive predictions were made at all. That's{" "}
                       <strong className="text-foreground">honest abstention, not failure</strong>:
                       it declines to fabricate confidence it doesn't have, rather than
                       hallucinating a fraud signal out of data that can't actually support one.
                       The same scoring pipeline and policy gate that catch real signals in the
-                      synthetic and live data above have nothing to work with here — which is
-                      itself evidence the system isn't just pattern-matching noise into false
+                      synthetic and live data above have nothing to work with here, which is
+                      itself evidence the system isn't pattern-matching noise into false
                       positives.
                     </p>
                   </CardContent>
@@ -559,10 +559,10 @@ export function DashboardContent() {
               </h2>
               <p className="text-muted-foreground text-sm">
                 Precision/recall computed only from real payments with a confirmed real-world
-                outcome — a genuine dispute via Razorpay's{" "}
+                outcome: a genuine dispute via Razorpay's{" "}
                 <code className="font-mono text-xs">payment.dispute.created</code> webhook
                 retroactively labels the original transaction as fraud. This grows as real
-                disputes (and, over time, more confirmed-clean volume) accumulate — it is not
+                disputes (and, over time, more confirmed-clean volume) accumulate. It is not
                 synthetic.
               </p>
             </div>
@@ -570,9 +570,9 @@ export function DashboardContent() {
               <p className="text-muted-foreground text-sm">Loading live metrics…</p>
             ) : liveMetrics.totalLabeled === 0 ? (
               <p className="text-muted-foreground text-sm italic">
-                N=0 real transactions with a confirmed outcome so far — no disputes have landed
+                N=0 real transactions with a confirmed outcome so far. No disputes have landed
                 on a live payment yet. This panel activates automatically the moment one does;
-                it's shown now to demonstrate the mechanism is live and real, not a simulation.
+                it's shown here to demonstrate the mechanism is live and real, not a simulation.
               </p>
             ) : (
               <>
@@ -581,15 +581,15 @@ export function DashboardContent() {
                   <StatCard label="Recall" value={formatPercent(liveMetrics.recall)} />
                   <StatCard
                     label="F1"
-                    value={liveMetrics.f1 != null ? liveMetrics.f1.toFixed(3) : "—"}
+                    value={liveMetrics.f1 != null ? liveMetrics.f1.toFixed(3) : "–"}
                   />
                   <StatCard label="N (confirmed outcomes)" value={liveMetrics.totalLabeled} />
                 </div>
                 <p className="text-muted-foreground text-xs italic">
                   N={liveMetrics.totalLabeled} real transaction
-                  {liveMetrics.totalLabeled === 1 ? "" : "s"} with a confirmed outcome so far —
+                  {liveMetrics.totalLabeled === 1 ? "" : "s"} with a confirmed outcome so far,
                   too small to be statistically meaningful yet. Shown for transparency and to
-                  demonstrate the ground-truth mechanism is live and real, not just synthetic.
+                  demonstrate the ground-truth mechanism is live and real, not synthetic.
                 </p>
               </>
             )}
@@ -697,12 +697,12 @@ export function DashboardContent() {
                   <StatCard
                     label="Daily refund budget"
                     value={formatINR(bounds.dailyRefundCap)}
-                    info="A hard ceiling on total auto-refunds per day across all transactions — once hit, everything else gets flagged for a human instead."
+                    info="A hard ceiling on total auto-refunds per day across all transactions. Once hit, everything else gets flagged for a human instead."
                   />
                   <StatCard
                     label="Auto-refund requires"
                     value={`risk > ${bounds.minRiskScore} AND confidence > ${bounds.minConfidence}`}
-                    info="Both the risk score AND the confidence score have to clear their own bar before an auto-refund is even considered — one high number alone isn't enough."
+                    info="Both the risk score AND the confidence score have to clear their own bar before an auto-refund is considered. One high number alone isn't enough."
                   />
                   <StatCard
                     label="Hold-for-review threshold"
@@ -736,14 +736,14 @@ export function DashboardContent() {
                     })()}
                     <p className="text-muted-foreground text-xs">
                       Counts approved auto_refund decisions, not confirmed successful Razorpay
-                      refunds — a failed real refund still consumes budget, so a retry can't open
+                      refunds. A failed real refund still consumes budget, so a retry can't open
                       more room than was actually authorized.
                     </p>
                   </CardContent>
                 </Card>
 
                 <p className="text-muted-foreground text-xs">
-                  These bounds are enforced in code, not by the AI — the model can recommend an
+                  These bounds are enforced in code, not by the AI. The model can recommend an
                   action, but only this policy gate can approve real money movement.
                 </p>
               </>
@@ -754,8 +754,8 @@ export function DashboardContent() {
             <div>
               <h2 className="text-lg font-medium">Risk Signals</h2>
               <p className="text-muted-foreground text-sm">
-                Every payment is evaluated against these 12 deterministic signals before scoring
-                — the same multi-signal philosophy as Razorpay's own Vulcan model, deliberately
+                Every payment is evaluated against these 12 deterministic signals before scoring,
+                the same multi-signal philosophy as Razorpay's own Vulcan model, deliberately
                 kept small and explainable rather than a black-box foundation model.
               </p>
             </div>
@@ -796,7 +796,7 @@ export function DashboardContent() {
             <div>
               <h2 className="text-lg font-medium">Try it yourself</h2>
               <p className="text-muted-foreground text-sm">
-                Send a real payment through the actual pipeline — Razorpay's hosted checkout,
+                Send a real payment through the actual pipeline: Razorpay's hosted checkout,
                 real signature verification, real scoring.
               </p>
             </div>
@@ -817,11 +817,10 @@ export function DashboardContent() {
             <div>
               <h2 className="text-lg font-medium">Demo: Simulate AI Scoring Outage</h2>
               <p className="text-muted-foreground text-sm">
-                Cosmetic demo control — runs one synthetic transaction through the real pipeline
+                Cosmetic demo control. Runs one synthetic transaction through the real pipeline
                 with the AI scoring call forced to fail, so you can show the fallback path live.
-                Does not call the AI provider or touch GROQ_API_KEY, and never executes a real
-                Razorpay refund (all rows are tagged source: demo_simulated). Safe to click
-                repeatedly.
+                Does not call the AI provider, and never executes a real Razorpay refund (all
+                rows are tagged source: demo_simulated). Safe to click repeatedly.
               </p>
             </div>
 
@@ -843,7 +842,7 @@ export function DashboardContent() {
               <div className="grid gap-3 md:grid-cols-2 pt-2">
                 <Card>
                   <CardHeader>
-                    <CardDescription>Before — AI scoring call</CardDescription>
+                    <CardDescription>Before: AI scoring call</CardDescription>
                     <CardTitle className="text-base">Attempted, failed</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-1">
@@ -854,7 +853,7 @@ export function DashboardContent() {
 
                 <Card>
                   <CardHeader>
-                    <CardDescription>After — fallback heuristic</CardDescription>
+                    <CardDescription>After: fallback heuristic</CardDescription>
                     <CardTitle className="text-base">
                       risk {demoResult.riskScore?.toFixed(2)} · confidence{" "}
                       {demoResult.confidence?.toFixed(2)}
@@ -909,7 +908,7 @@ export function DashboardContent() {
           {alerts.length === 0 ? (
             <div className="space-y-3 py-4 text-center">
               <p className="text-muted-foreground text-sm">
-                No alerts yet — these fire when a real payment gets held for review or refunded.
+                No alerts yet. These fire when a real payment gets held for review or refunded.
                 Not every test payment triggers one (that depends on the risk score), but making
                 a few real purchases is the fastest way to see one land.
               </p>

@@ -43,9 +43,9 @@ export default function Home() {
               Only the gate can move money.
             </h1>
             <p className="mt-5 max-w-lg text-base text-muted-foreground sm:text-lg">
-              Sentinel scores every Razorpay payment for fraud risk with Groq-hosted AI, then a
-              fixed, auditable set of rules — not the model — decides whether it's allowed, held
-              for review, or auto-refunded.
+              Sentinel AI scores every Razorpay payment for fraud risk. A fixed, auditable set of
+              rules, not the model, decides whether it's allowed, held for review, or
+              auto-refunded.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button size="lg" asChild>
@@ -72,7 +72,7 @@ export default function Home() {
             How it works
           </h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            One payment, four stages, one honest audit trail — every time.
+            One payment, four stages, one honest audit trail, every time.
           </p>
           <div className="mt-10">
             <PipelineFlow />
@@ -86,7 +86,7 @@ export default function Home() {
           Bring your own bounds.
         </h2>
         <p className="mx-auto mt-2 max-w-md text-muted-foreground">
-          Set your own refund caps and thresholds — the gate enforces whatever you configure.
+          Set your own refund caps and thresholds. The gate enforces whatever you configure.
         </p>
         <div className="mt-6">
           <Button size="lg" asChild>
@@ -97,7 +97,7 @@ export default function Home() {
 
       <footer className="border-t border-border py-6">
         <p className="mx-auto max-w-6xl px-6 text-xs text-muted-foreground">
-          Sentinel — explainable, bounded, gated fraud risk detection.
+          Sentinel: explainable, bounded, gated fraud risk detection.
         </p>
       </footer>
     </div>

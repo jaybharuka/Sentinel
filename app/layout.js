@@ -35,7 +35,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata = {
-  title: "Sentinel — Fraud & Chargeback Risk Guard",
+  title: "Sentinel: Fraud & Chargeback Risk Guard",
   description:
     "Explainable, bounded, gated fraud risk detection for online merchants.",
 };

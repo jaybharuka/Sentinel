@@ -81,10 +81,10 @@ export function DemoStore({ products }) {
           Real product data from{" "}
           <a href="https://fakestoreapi.com" target="_blank" rel="noreferrer" className="underline">
             FakeStoreAPI
-          </a>{" "}
-          — add items to your cart and check out through Razorpay's real hosted checkout, same
-          pipeline as everything else on this dashboard. Prices are USD amounts relabeled as ₹ for
-          this test-mode demo, not a live currency conversion.{" "}
+          </a>
+          . Add items to your cart and check out through Razorpay's real hosted checkout, the
+          same pipeline as everything else on this dashboard. Prices are USD amounts relabeled as
+          ₹ for this test-mode demo, not a live currency conversion.{" "}
           <Link href="/demo-payment" className="underline">
             Prefer a plain amount instead? Use the quick test payment.
           </Link>
@@ -169,7 +169,7 @@ export function DemoStore({ products }) {
                   {overCap && (
                     <p className="text-destructive text-xs">
                       Cart total exceeds the ₹{MAX_ORDER_RUPEES.toLocaleString("en-IN")} test-mode
-                      order limit — remove an item or reduce a quantity to check out.
+                      order limit. Remove an item or reduce a quantity to check out.
                     </p>
                   )}
                   {error && <p className="text-destructive text-xs">{error}</p>}
@@ -225,7 +225,7 @@ export function DemoStore({ products }) {
         <Card>
           <CardContent className="space-y-3 py-6">
             <p className="text-sm font-medium">
-              Purchase received — Sentinel is analyzing this transaction now…
+              Purchase received. Sentinel is analyzing this transaction now…
             </p>
             <AnalyzingProgress />
             <p className="text-muted-foreground font-mono text-xs">payment_id: {paymentId}</p>
@@ -271,10 +271,10 @@ export function DemoStore({ products }) {
       {stage === "timeout" && (
         <Card>
           <CardContent className="space-y-3 py-6">
-            <p className="text-sm font-medium">Still analyzing — this is taking longer than usual.</p>
+            <p className="text-sm font-medium">Still analyzing. This is taking longer than usual.</p>
             <p className="text-muted-foreground text-sm">
-              Your payment was verified successfully, so nothing's wrong on that end. It just
-              hasn't shown up in the audit trail within a minute. Check the dashboard — it may
+              Your payment was verified successfully, so nothing's wrong on that end. It hasn't
+              shown up in the audit trail within a minute yet. Check the dashboard, it may
               already be there, or land in the next few seconds.
             </p>
             <div className="flex gap-2">

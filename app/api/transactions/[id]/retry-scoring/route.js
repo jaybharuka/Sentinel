@@ -62,7 +62,7 @@ export async function POST(request, { params }) {
     ...scoringOutput.reasons,
     `AI recommended: ${scoringOutput.recommended_action}`,
     `Policy: ${policyResult.reason}`,
-    `Manually retried with live AI scoring at ${new Date().toISOString()} (originally used fallback) — decision re-evaluated above, but no refund or alert was re-triggered as a result of this retry.`,
+    `Manually retried with live AI scoring at ${new Date().toISOString()} (originally used fallback). Decision re-evaluated above, but no refund or alert was re-triggered as a result of this retry.`,
   ];
 
   const updated = await prisma.transaction.update({

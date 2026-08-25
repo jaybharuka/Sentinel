@@ -36,7 +36,7 @@ export function GettingStarted({ onDismiss }) {
           <p className="font-mono text-xs uppercase tracking-widest text-primary">Start here</p>
           <h2 className="font-display mt-1 text-xl font-semibold">Welcome to Sentinel</h2>
           <p className="text-muted-foreground mt-1 text-sm">
-            Three things worth trying, about 30 seconds each — no setup needed.
+            Three things worth trying, about 30 seconds each. No setup needed.
           </p>
         </div>
         <button

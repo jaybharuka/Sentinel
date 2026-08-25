@@ -45,8 +45,8 @@ export function CheckoutDemo() {
         <CardHeader>
           <CardTitle className="font-display text-xl">Try a live test payment</CardTitle>
           <CardDescription>
-            Opens Razorpay's real checkout — their hosted widget, not a card form built by us —
-            directly on this page. Test mode only. Test card:{" "}
+            Opens Razorpay's real hosted checkout widget on this page, not a card form built by
+            us. Test mode only. Test card:{" "}
             <span className="font-mono">4386 2894 0766 0153</span>, any future expiry, OTP{" "}
             <span className="font-mono">1234</span>.
           </CardDescription>
@@ -120,7 +120,7 @@ export function CheckoutDemo() {
           {stage === "analyzing" && (
             <div className="space-y-3">
               <p className="text-sm font-medium">
-                Payment received — Sentinel is analyzing this transaction now…
+                Payment received. Sentinel is analyzing this transaction now…
               </p>
               <AnalyzingProgress />
               <p className="text-muted-foreground font-mono text-xs">payment_id: {paymentId}</p>
@@ -155,10 +155,10 @@ export function CheckoutDemo() {
 
           {stage === "timeout" && (
             <div className="space-y-3">
-              <p className="text-sm font-medium">Still analyzing — this is taking longer than usual.</p>
+              <p className="text-sm font-medium">Still analyzing. This is taking longer than usual.</p>
               <p className="text-muted-foreground text-sm">
-                Your payment was verified successfully, so nothing's wrong on that end. It just
-                hasn't shown up in the audit trail within a minute. Check the dashboard — it may
+                Your payment was verified successfully, so nothing's wrong on that end. It hasn't
+                shown up in the audit trail within a minute yet. Check the dashboard, it may
                 already be there, or land in the next few seconds.
               </p>
               <div className="flex gap-2">

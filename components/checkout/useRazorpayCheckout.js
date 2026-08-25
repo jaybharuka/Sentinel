@@ -47,7 +47,7 @@ export function useRazorpayCheckout() {
     setError(null);
 
     if (!window.Razorpay) {
-      setError("Razorpay checkout is still loading — try again in a moment.");
+      setError("Razorpay checkout is still loading. Try again in a moment.");
       return;
     }
 
