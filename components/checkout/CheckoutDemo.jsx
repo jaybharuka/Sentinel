@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { useRazorpayCheckout } from "@/components/checkout/useRazorpayCheckout";
+import { AnalyzingProgress } from "@/components/checkout/AnalyzingProgress";
 
 function formatINR(amount) {
   return `₹${Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -117,13 +118,11 @@ export function CheckoutDemo() {
           )}
 
           {stage === "analyzing" && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-sm font-medium">
                 Payment received — Sentinel is analyzing this transaction now…
               </p>
-              <p className="text-muted-foreground text-xs">
-                This can take up to a minute — the AI scores it, then the policy gate decides.
-              </p>
+              <AnalyzingProgress />
               <p className="text-muted-foreground font-mono text-xs">payment_id: {paymentId}</p>
             </div>
           )}

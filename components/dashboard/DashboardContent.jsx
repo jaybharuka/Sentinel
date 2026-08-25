@@ -16,8 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { SIGNAL_CATEGORIES, SIGNAL_DEFS } from "@/components/dashboard/riskSignals";
+import { GettingStarted } from "@/components/dashboard/GettingStarted";
 
 const HOW_IT_WORKS_SEEN_KEY = "sentinel_how_it_works_seen";
+const GETTING_STARTED_SEEN_KEY = "sentinel_getting_started_seen";
 
 const DEMO_SCENARIOS = [
   { value: "clean", label: "Clean transaction" },
@@ -76,6 +78,7 @@ function formatDateTime(value) {
 
 export function DashboardContent() {
   const [howItWorksOpen, setHowItWorksOpen] = useState(true);
+  const [gettingStartedOpen, setGettingStartedOpen] = useState(true);
   const [bounds, setBounds] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [benchmarkMetrics, setBenchmarkMetrics] = useState(null);
@@ -134,6 +137,23 @@ export function DashboardContent() {
       // localStorage unavailable (private browsing, etc.) - default to open, harmless.
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const seen = window.localStorage.getItem(GETTING_STARTED_SEEN_KEY);
+      if (seen) {
+        setGettingStartedOpen(false);
+      } else {
+        window.localStorage.setItem(GETTING_STARTED_SEEN_KEY, "1");
+      }
+    } catch {
+      // localStorage unavailable (private browsing, etc.) - default to open, harmless.
+    }
+  }, []);
+
+  function dismissGettingStarted() {
+    setGettingStartedOpen(false);
+  }
 
   function refetchBounds() {
     fetch("/api/policy-bounds")
@@ -235,6 +255,8 @@ export function DashboardContent() {
         </div>
       </div>
 
+      {gettingStartedOpen && <GettingStarted onDismiss={dismissGettingStarted} />}
+
       {/* How this works */}
       <section className="rounded-lg border border-border bg-secondary/50">
         <button
@@ -262,7 +284,7 @@ export function DashboardContent() {
       </section>
 
       {/* Policy bounds panel */}
-      <section className="space-y-3">
+      <section id="policy-bounds" className="scroll-mt-6 space-y-3">
         <h2 className="text-lg font-medium">Policy Bounds</h2>
         {!bounds ? (
           <p className="text-muted-foreground text-sm">Loading policy bounds…</p>
@@ -549,7 +571,10 @@ export function DashboardContent() {
       </section>
 
       {/* Demo: simulate AI scoring outage */}
-      <section className="space-y-3 rounded-lg border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4">
+      <section
+        id="demo-outage"
+        className="scroll-mt-6 space-y-3 rounded-lg border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4"
+      >
         <div>
           <h2 className="text-lg font-medium">Demo: Simulate AI Scoring Outage</h2>
           <p className="text-muted-foreground text-sm">
@@ -638,7 +663,20 @@ export function DashboardContent() {
           Most recent 20 processed transactions. Click a row for AI/fallback reasons and the
           policy gate's decision.
         </p>
-        <TransactionsTable rows={recentRows} />
+        <TransactionsTable
+          rows={recentRows}
+          emptyMessage="No transactions yet."
+          emptyAction={
+            <div className="flex justify-center gap-2">
+              <Button asChild size="sm">
+                <Link href="/demo-store">Try the demo store</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/demo-payment">Make a test payment</Link>
+              </Button>
+            </div>
+          }
+        />
       </section>
 
       {/* Alerts */}
@@ -651,10 +689,16 @@ export function DashboardContent() {
           </p>
         </div>
         {alerts.length === 0 ? (
-          <p className="text-muted-foreground text-sm py-4">
-            No alerts yet. A hold_for_review or auto_refund decision on a real (razorpay_live)
-            transaction will generate one.
-          </p>
+          <div className="space-y-3 py-4 text-center">
+            <p className="text-muted-foreground text-sm">
+              No alerts yet — these fire when a real payment gets held for review or refunded.
+              Not every test payment triggers one (that depends on the risk score), but making a
+              few real purchases is the fastest way to see one land.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/demo-store">Make a real test purchase</Link>
+            </Button>
+          </div>
         ) : (
           <div className="rounded-lg border divide-y">
             {alerts.map((alert) => (

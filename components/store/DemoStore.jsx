@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { useRazorpayCheckout } from "@/components/checkout/useRazorpayCheckout";
+import { AnalyzingProgress } from "@/components/checkout/AnalyzingProgress";
 
 // Matches app/api/checkout/create-order/route.js's MAX_AMOUNT_RUPEES - kept
 // as a duplicated client-side constant (not imported) since that route
@@ -222,13 +223,11 @@ export function DemoStore({ products }) {
 
       {stage === "analyzing" && (
         <Card>
-          <CardContent className="space-y-2 py-6">
+          <CardContent className="space-y-3 py-6">
             <p className="text-sm font-medium">
               Purchase received — Sentinel is analyzing this transaction now…
             </p>
-            <p className="text-muted-foreground text-xs">
-              This can take up to a minute — the AI scores it, then the policy gate decides.
-            </p>
+            <AnalyzingProgress />
             <p className="text-muted-foreground font-mono text-xs">payment_id: {paymentId}</p>
           </CardContent>
         </Card>

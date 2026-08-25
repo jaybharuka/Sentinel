@@ -109,14 +109,23 @@ function RefundStatus({ refundExecuted, refundId, refundError }) {
   );
 }
 
-export function TransactionsTable({ rows, emptyMessage = "No transactions match these filters." }) {
+export function TransactionsTable({
+  rows,
+  emptyMessage = "No transactions match these filters.",
+  emptyAction,
+}) {
   const [expandedId, setExpandedId] = useState(null);
   const [overrides, setOverrides] = useState({});
   const [retryingId, setRetryingId] = useState(null);
   const [retryError, setRetryError] = useState(null);
 
   if (!rows || rows.length === 0) {
-    return <p className="text-muted-foreground text-sm py-8 text-center">{emptyMessage}</p>;
+    return (
+      <div className="space-y-3 py-8 text-center">
+        <p className="text-muted-foreground text-sm">{emptyMessage}</p>
+        {emptyAction}
+      </div>
+    );
   }
 
   async function handleRetry(rowId) {
