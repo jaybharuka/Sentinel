@@ -48,35 +48,47 @@
   --refund-foreground: oklch(0.99 0.005 264);
 }
 
+/*
+  Dark mode: a neutral dark gray with only a faint warm undertone (hue 60,
+  very low chroma - not a visible brown/sepia tint) rather than a
+  blue-tinted "dev tool" dark gray - closer to Claude's own dark theme.
+  Decision-state hues (success/warning/refund) keep the same hue angles as
+  light mode so the semantics read identically in both themes; only
+  lightness/chroma and their foreground pairings are tuned for a dark,
+  low-chroma background instead of inverted wholesale.
+*/
 .dark {
-  --background: oklch(0.16 0.02 264);
-  --foreground: oklch(0.96 0.01 264);
-  --card: oklch(0.2 0.02 264);
-  --card-foreground: oklch(0.96 0.01 264);
-  --popover: oklch(0.2 0.02 264);
-  --popover-foreground: oklch(0.96 0.01 264);
+  --background: oklch(0.16 0.006 60);
+  --foreground: oklch(0.93 0.01 70);
+  --card: oklch(0.2 0.007 60);
+  --card-foreground: oklch(0.93 0.01 70);
+  --popover: oklch(0.2 0.007 60);
+  --popover-foreground: oklch(0.93 0.01 70);
 
-  --primary: oklch(0.72 0.16 264);
-  --primary-foreground: oklch(0.16 0.02 264);
-  --secondary: oklch(0.27 0.02 264);
-  --secondary-foreground: oklch(0.96 0.01 264);
-  --muted: oklch(0.27 0.02 264);
-  --muted-foreground: oklch(0.68 0.02 264);
-  --accent: oklch(0.29 0.03 264);
-  --accent-foreground: oklch(0.96 0.01 264);
+  --primary: oklch(0.74 0.15 264);
+  --primary-foreground: oklch(0.18 0.02 264);
+  --secondary: oklch(0.24 0.007 60);
+  --secondary-foreground: oklch(0.93 0.01 70);
+  --muted: oklch(0.24 0.007 60);
+  --muted-foreground: oklch(0.65 0.012 65);
+  --accent: oklch(0.27 0.009 60);
+  --accent-foreground: oklch(0.93 0.01 70);
 
   --destructive: oklch(0.66 0.2 25);
-  --destructive-foreground: oklch(0.99 0.005 264);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.72 0.16 264 / 45%);
+  --destructive-foreground: oklch(0.97 0.008 75);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.74 0.15 264 / 45%);
 
-  --success: oklch(0.68 0.14 165);
-  --success-foreground: oklch(0.16 0.02 264);
-  --warning: oklch(0.76 0.15 63);
-  --warning-foreground: oklch(0.16 0.02 264);
-  --refund: oklch(0.68 0.18 33);
-  --refund-foreground: oklch(0.16 0.02 264);
+  /* Clear (allow) */
+  --success: oklch(0.7 0.13 165);
+  --success-foreground: oklch(0.17 0.02 165);
+  /* Flag (hold for review) */
+  --warning: oklch(0.77 0.15 63);
+  --warning-foreground: oklch(0.18 0.03 63);
+  /* Refund (auto_refund) */
+  --refund: oklch(0.7 0.17 33);
+  --refund-foreground: oklch(0.18 0.03 33);
 }
 
 @theme inline {
@@ -106,7 +118,7 @@
   --color-refund: var(--refund);
   --color-refund-foreground: var(--refund-foreground);
   --font-sans: var(--font-plex-sans);
-  --font-display: var(--font-space-grotesk);
+  --font-display: var(--font-source-serif);
   --font-mono: var(--font-plex-mono);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -124,6 +136,6 @@
   }
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 }

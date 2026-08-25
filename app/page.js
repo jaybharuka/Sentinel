@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { GateVisualization } from "@/components/brand/GateVisualization";
 import { PipelineFlow } from "@/components/brand/PipelineFlow";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
             >
               How it works
             </a>
+            <ThemeToggle />
             <Button variant="ghost" size="sm" asChild>
               <Link href="/login">Log in</Link>
             </Button>
@@ -35,7 +37,7 @@ export default function Home() {
             <p className="font-mono text-xs uppercase tracking-widest text-primary">
               Fraud &amp; chargeback risk guard
             </p>
-            <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
+            <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] sm:text-5xl">
               The AI can suggest.
               <br />
               Only the gate can move money.
@@ -66,7 +68,7 @@ export default function Home() {
       {/* How it works */}
       <section id="how-it-works" className="border-t border-border bg-secondary/40">
         <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h2 className="font-display text-2xl font-semibold sm:text-3xl">
             How it works
           </h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
@@ -80,7 +82,7 @@ export default function Home() {
 
       {/* Footer CTA */}
       <section className="mx-auto max-w-6xl px-6 py-16 text-center sm:py-20">
-        <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-semibold sm:text-3xl">
           Bring your own bounds.
         </h2>
         <p className="mx-auto mt-2 max-w-md text-muted-foreground">

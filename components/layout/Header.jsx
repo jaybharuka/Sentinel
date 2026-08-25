@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 export function Header({ merchant }) {
   const router = useRouter();
@@ -25,6 +26,7 @@ export function Header({ merchant }) {
         </nav>
       </div>
       <div className="flex items-center gap-3">
+        <ThemeToggle />
         <div className="text-right">
           <p className="text-sm font-medium">{merchant.name}</p>
           <p className="text-xs text-muted-foreground">{merchant.email}</p>

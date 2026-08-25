@@ -1,8 +1,23 @@
-import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Source_Serif_4, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+// Runs before hydration (strategy="beforeInteractive") so the "dark" class
+// is already on <html> by first paint - defaults to light when nothing is
+// stored, per the light-by-default requirement for first-time visitors.
+const THEME_INIT_SCRIPT = `
+try {
+  if (localStorage.getItem("sentinel_theme") === "dark") {
+    document.documentElement.classList.add("dark");
+  }
+} catch (e) {}
+`;
+
+// Editorial warmth for headings, like Claude's own interface - Source
+// Serif 4 rather than Anthropic's proprietary display face, to keep this
+// a real, freely-licensed Google Font (no IP/trademark risk).
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
 });
@@ -29,9 +44,14 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${plexSans.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${sourceSerif.variable} ${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
+        {children}
+      </body>
     </html>
   );
 }
