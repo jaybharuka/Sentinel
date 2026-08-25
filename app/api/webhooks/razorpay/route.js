@@ -14,10 +14,12 @@ import { DEFAULT_MERCHANT_ID } from "@/lib/merchantSettings";
 // stored on their MerchantSettings row) instead of a single shared .env.
 
 // Razorpay requires a 2xx response within 5 seconds or it treats the
-// delivery as failed and retries. Gemini scoring alone has been observed
-// taking 3-6s, so payment events are acked immediately after signature
-// verification and scored asynchronously - the audit row lands a few
-// seconds after the ack, same as it would from a slow /api/ingest call.
+// delivery as failed and retries. AI scoring (lib/aiScoring.js's
+// Groq/Gemini provider chain) can take several seconds, especially if it
+// has to fail over through multiple tiers, so payment events are acked
+// immediately after signature verification and scored asynchronously - the
+// audit row lands a few seconds after the ack, same as it would from a
+// slow /api/ingest call.
 function verifySignature(rawBody, signature, secret) {
   if (!signature) return false;
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
@@ -72,9 +74,21 @@ async function markDisputed(paymentId) {
     console.warn(`Dispute received for unknown payment ${paymentId} - no matching transaction`);
     return;
   }
+  // A real dispute is genuine fraud ground-truth - retroactively labels the
+  // original transaction the same way synthetic seed data is pre-labeled,
+  // so it feeds into precision/recall the same way (see
+  // app/api/metrics/live). Scoped to source: razorpay_live defensively,
+  // same as the daily-refund-budget/refund-execution/alert checks
+  // elsewhere in this pipeline - a real Razorpay dispute could only ever
+  // reference a real payment ID in practice, but this keeps the invariant
+  // explicit rather than relying on txnId formats never colliding.
+  if (txn.source !== "razorpay_live") {
+    console.warn(`Dispute received for non-live transaction ${paymentId} (source: ${txn.source}) - ignoring`);
+    return;
+  }
   await prisma.transaction.update({
     where: { txnId: paymentId },
-    data: { disputedAt: new Date() },
+    data: { disputedAt: new Date(), isLabeledFraud: true },
   });
 }
 
