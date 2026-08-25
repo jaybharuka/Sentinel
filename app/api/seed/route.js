@@ -4,9 +4,14 @@ import { ingestTransaction } from "@/lib/ingestTransaction";
 import { getCurrentMerchant } from "@/lib/currentMerchant";
 
 // Dev-only convenience endpoint: replays the synthetic labeled dataset
-// through the real ingest pipeline (Gemini + fallback + policy gate) so
+// through the real ingest pipeline (AI scoring + fallback + policy gate) so
 // the DB fills up with a held-out test set. Not for production use.
-const DELAY_MS = 300;
+//
+// DELAY_MS is paced to Groq's free-tier cap for lib/aiScoring.js's model:
+// 8,000 tokens/minute, confirmed via live x-ratelimit-* response headers.
+// Each scoring call costs ~900-1000 tokens, so >8-9 calls/minute starts
+// throttling - 7s between calls keeps this well under that ceiling.
+const DELAY_MS = 7000;
 
 export async function POST() {
   // Scoped to whichever merchant is logged in when this is called, so

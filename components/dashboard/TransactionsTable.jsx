@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import {
   Table,
   TableBody,
@@ -15,20 +16,20 @@ import {
 
 // Same "skip the boilerplate line" logic used for merchant email alerts
 // (lib/alerting.js) - surfaces the first actual signal rather than the
-// generic "Gemini unavailable" notice or the recommended-action echo line.
+// generic "AI scoring unavailable" notice or the recommended-action echo line.
 function plainEnglishReason(reasons) {
   return (
     (reasons || []).find(
-      (r) => !r.startsWith("⚠️") && !r.startsWith("Fallback recommended") && !r.startsWith("Gemini recommended") && !r.startsWith("Policy:")
+      (r) => !r.startsWith("⚠️") && !r.startsWith("Fallback recommended") && !r.startsWith("AI recommended") && !r.startsWith("Policy:")
     ) || "no specific signal recorded"
   );
 }
 
 const COLUMN_INFO = {
-  Risk: "The fraud risk score from 0 (no risk) to 1 (certain fraud), from Gemini or the backup rule-based system.",
+  Risk: "The fraud risk score from 0 (no risk) to 1 (certain fraud), from the AI model or the backup rule-based system.",
   Decision: "What the policy gate decided to do about this transaction, based on the risk score and the merchant's configured bounds.",
   Action: "What actually happened as a result of the decision — for auto-refund, whether the real Razorpay refund call succeeded.",
-  Source: "Whether Gemini scored this transaction directly, or the backup rule-based system did (usually because Gemini's free-tier limit was hit).",
+  Source: "Whether the AI model scored this transaction directly, or the backup rule-based system did (usually because the model provider's rate limit was hit).",
 };
 
 function formatINR(amount) {
@@ -45,9 +46,14 @@ function formatTimestamp(value) {
 }
 
 function DecisionBadge({ decision }) {
-  if (decision === "auto_refund") return <Badge>auto_refund</Badge>;
-  if (decision === "hold_for_review") return <Badge variant="warning">hold_for_review</Badge>;
-  return <Badge variant="outline">allow</Badge>;
+  const variant =
+    decision === "auto_refund" ? "refund" : decision === "hold_for_review" ? "warning" : "outline";
+  return (
+    <Badge variant={variant} className="gap-1">
+      <DecisionIcon decision={decision} className="size-3" />
+      {decision || "allow"}
+    </Badge>
+  );
 }
 
 function SourceBadge({ usedFallback }) {
@@ -56,13 +62,13 @@ function SourceBadge({ usedFallback }) {
       {usedFallback ? (
         <Badge variant="warning">Fallback</Badge>
       ) : (
-        <Badge variant="success">Gemini</Badge>
+        <Badge variant="success">AI</Badge>
       )}
       <InfoTooltip
         text={
           usedFallback
-            ? "Gemini was unavailable or timed out for this transaction, so the backup rule-based scorer handled it instead."
-            : "Gemini scored this transaction directly."
+            ? "The AI model was unavailable or timed out for this transaction, so the backup rule-based scorer handled it instead."
+            : "The AI model scored this transaction directly."
         }
       />
     </span>
@@ -109,7 +115,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
     setRetryingId(rowId);
     setRetryError(null);
     try {
-      const res = await fetch(`/api/transactions/${rowId}/retry-gemini`, { method: "POST" });
+      const res = await fetch(`/api/transactions/${rowId}/retry-scoring`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
         setRetryError(data.error || "Retry failed");
@@ -124,7 +130,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
   }
 
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
@@ -172,8 +178,10 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>{formatINR(row.amount)}</TableCell>
-                  <TableCell>{row.riskScore != null ? row.riskScore.toFixed(2) : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{formatINR(row.amount)}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {row.riskScore != null ? row.riskScore.toFixed(2) : "—"}
+                  </TableCell>
                   <TableCell><DecisionBadge decision={row.policyDecision} /></TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {row.actionTaken}
@@ -217,7 +225,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                                 handleRetry(row.id);
                               }}
                             >
-                              {retryingId === row.id ? "Retrying…" : "Retry with Gemini"}
+                              {retryingId === row.id ? "Retrying…" : "Retry with AI"}
                             </Button>
                           )}
                         </div>
@@ -225,7 +233,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                           <p className="text-destructive text-xs">{retryError}</p>
                         )}
                         <div className="text-muted-foreground text-xs uppercase tracking-wide pt-1">
-                          Full technical reasons (Gemini / fallback + policy decision)
+                          Full technical reasons (AI / fallback + policy decision)
                         </div>
                         <ul className="list-disc pl-5 space-y-1">
                           {(row.reasons || []).map((reason, i) => (
@@ -234,7 +242,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                               className={
                                 reason.startsWith("Policy:")
                                   ? "font-medium text-foreground"
-                                  : reason.startsWith("Gemini recommended:") || reason.startsWith("Fallback recommended:")
+                                  : reason.startsWith("AI recommended:") || reason.startsWith("Fallback recommended:")
                                     ? "text-muted-foreground italic"
                                     : ""
                               }
@@ -247,6 +255,20 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                           confidence: {row.confidence != null ? row.confidence.toFixed(2) : "—"} · email:{" "}
                           {row.email} · ip: {row.ipCountry} → billing: {row.billingCountry}
                         </div>
+                        {row.features && (
+                          <div className="pt-2">
+                            <div className="text-muted-foreground text-xs uppercase tracking-wide pb-1">
+                              Raw signals ({Object.keys(row.features).length})
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-xs text-muted-foreground sm:grid-cols-3">
+                              {Object.entries(row.features).map(([key, value]) => (
+                                <div key={key}>
+                                  {key}: {value === null || value === undefined ? "—" : String(value)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {row.actionTaken === "auto_refund" && (
                           <div className="text-xs pt-1">
                             {row.refundExecuted === null ? (

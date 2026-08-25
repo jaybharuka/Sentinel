@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentMerchant } from "@/lib/currentMerchant";
-import { scoreTransaction } from "@/lib/gemini";
+import { scoreTransaction } from "@/lib/aiScoring";
 import { applyPolicy } from "@/lib/policyGate";
 import { getMerchantSettings } from "@/lib/merchantSettings";
 import { startOfDay, endOfDay } from "@/lib/ingestTransaction";
 
-// Manually re-scores one already-stored transaction with a fresh live
-// Gemini call, using its already-computed (deterministic) features -
+// Manually re-scores one already-stored transaction with a fresh live AI
+// scoring call, using its already-computed (deterministic) features -
 // operational/demo convenience for "this one used the fallback, retry it
-// to see real Gemini reasoning." Re-runs the policy gate against the new
+// to see real AI reasoning." Re-runs the policy gate against the new
 // score so the decision shown is honest, but deliberately never calls
 // executeRefund() or sendAlert() regardless of the new decision - a manual
 // retry must never be able to trigger a second real refund or alert as a
@@ -30,7 +30,7 @@ export async function POST(request, { params }) {
     return Response.json({ error: "Transaction not found" }, { status: 404 });
   }
   if (!existing.usedFallback) {
-    return Response.json({ error: "This transaction was already scored by Gemini" }, { status: 400 });
+    return Response.json({ error: "This transaction was already scored by the AI" }, { status: 400 });
   }
 
   let scoringOutput;
@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
     scoringOutput = await scoreTransaction(existing.features);
   } catch (err) {
     return Response.json(
-      { error: `Gemini still unavailable: ${String(err.message || err)}` },
+      { error: `AI scoring still unavailable: ${String(err.message || err)}` },
       { status: 502 }
     );
   }
@@ -60,9 +60,9 @@ export async function POST(request, { params }) {
 
   const updatedReasons = [
     ...scoringOutput.reasons,
-    `Gemini recommended: ${scoringOutput.recommended_action}`,
+    `AI recommended: ${scoringOutput.recommended_action}`,
     `Policy: ${policyResult.reason}`,
-    `Manually retried with live Gemini at ${new Date().toISOString()} (originally used fallback) — decision re-evaluated above, but no refund or alert was re-triggered as a result of this retry.`,
+    `Manually retried with live AI scoring at ${new Date().toISOString()} (originally used fallback) — decision re-evaluated above, but no refund or alert was re-triggered as a result of this retry.`,
   ];
 
   const updated = await prisma.transaction.update({

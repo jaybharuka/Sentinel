@@ -40,8 +40,8 @@ function buildScenario(scenario) {
       timestamp: now.toISOString(),
       isNewCustomer: true,
       previousChargebacks: 5,
-      // Real request paths only ever set this via a genuine Gemini call or
-      // the rule-based fallback (which caps at hold_for_review) - this
+      // Real request paths only ever set this via a genuine AI scoring call
+      // or the rule-based fallback (which caps at hold_for_review) - this
       // scenario is the one place a specific score is injected, purely to
       // narrate the auto_refund decision for the demo. source stays
       // "demo_simulated" below so refund execution (stage 3) never fires.
@@ -93,12 +93,12 @@ export async function POST(request) {
     merchantId: merchant.id,
   };
 
-  const { saved, geminiError } = await ingestTransaction(event);
+  const { saved, scoringError } = await ingestTransaction(event);
 
   return Response.json({
     scenario,
-    geminiAttempted: true,
-    geminiError,
+    scoringAttempted: true,
+    scoringError,
     fallbackReasons: saved.reasons,
     riskScore: saved.riskScore,
     confidence: saved.confidence,

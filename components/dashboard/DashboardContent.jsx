@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -13,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { DecisionIcon } from "@/components/brand/DecisionIcon";
 
 const HOW_IT_WORKS_SEEN_KEY = "sentinel_how_it_works_seen";
 
@@ -31,7 +33,7 @@ const DECISION_TABS = [
 
 const SOURCE_TABS = [
   { value: "all", label: "All sources" },
-  { value: "false", label: "Gemini" },
+  { value: "false", label: "AI" },
   { value: "true", label: "Fallback" },
 ];
 
@@ -45,13 +47,13 @@ function formatINR(value) {
 
 function StatCard({ label, value, caption, info }) {
   return (
-    <Card>
+    <Card className="border-border/80">
       <CardHeader>
-        <CardDescription className="flex items-center gap-1">
+        <CardDescription className="flex items-center gap-1 text-xs uppercase tracking-wide">
           {label}
           {info && <InfoTooltip text={info} />}
         </CardDescription>
-        <CardTitle className="text-3xl">{value}</CardTitle>
+        <CardTitle className="font-mono text-2xl font-semibold tracking-tight">{value}</CardTitle>
       </CardHeader>
       {caption && (
         <CardContent>
@@ -198,15 +200,21 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-2xl font-semibold">Sentinel</h1>
-        <p className="text-muted-foreground text-sm">
-          Explainable fraud &amp; chargeback risk guard — audit trail and held-out test metrics.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-widest text-primary">Dashboard</p>
+          <h1 className="mt-1 text-2xl font-semibold">Sentinel</h1>
+          <p className="text-muted-foreground text-sm">
+            Explainable fraud &amp; chargeback risk guard — audit trail and held-out test metrics.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/demo-payment">Try a live test payment →</Link>
+        </Button>
       </div>
 
       {/* How this works */}
-      <section className="rounded-lg border bg-muted/30">
+      <section className="rounded-lg border border-border bg-secondary/50">
         <button
           type="button"
           onClick={() => setHowItWorksOpen((o) => !o)}
@@ -218,7 +226,7 @@ export function DashboardContent() {
         {howItWorksOpen && (
           <div className="px-4 pb-4 text-sm text-muted-foreground space-y-1">
             <p>
-              A payment comes in → Gemini (or a backup rule-based system if Gemini is
+              A payment comes in → an AI model (or a backup rule-based system if the AI is
               unavailable) scores it for fraud risk and explains why → a separate, simple set of
               rules decides what happens (allow it, flag it for human review, or auto-refund it).
             </p>
@@ -293,8 +301,8 @@ export function DashboardContent() {
             </Card>
 
             <p className="text-muted-foreground text-xs">
-              These bounds are enforced in code, not by the AI — Gemini can recommend an action,
-              but only this policy gate can approve real money movement.
+              These bounds are enforced in code, not by the AI — the model can recommend an
+              action, but only this policy gate can approve real money movement.
             </p>
           </>
         )}
@@ -343,8 +351,8 @@ export function DashboardContent() {
             <StatCard
               label="Fallback rate"
               value={formatPercent(metrics.fallbackRate)}
-              info="How often the backup rule-based scorer ran instead of Gemini."
-              caption={`${formatPercent(metrics.fallbackRate)} of transactions were scored by the backup rule-based system instead of the AI, usually due to Gemini's free-tier rate limits — this is expected and demonstrates graceful failure handling, not a bug. Every one of those calls still passed through the same policy gate.`}
+              info="How often the backup rule-based scorer ran instead of the AI model."
+              caption={`${formatPercent(metrics.fallbackRate)} of transactions were scored by the backup rule-based system instead of the AI, usually due to the model provider's rate limits — this is expected and demonstrates graceful failure handling, not a bug. Every one of those calls still passed through the same policy gate.`}
             />
           </div>
         )}
@@ -356,15 +364,15 @@ export function DashboardContent() {
         )}
       </section>
 
-      {/* Demo: simulate Gemini outage */}
-      <section className="space-y-3 rounded-lg border-2 border-dashed p-4">
+      {/* Demo: simulate AI scoring outage */}
+      <section className="space-y-3 rounded-lg border-2 border-dashed border-primary/30 bg-primary/[0.03] p-4">
         <div>
-          <h2 className="text-lg font-medium">Demo: Simulate Gemini Outage</h2>
+          <h2 className="text-lg font-medium">Demo: Simulate AI Scoring Outage</h2>
           <p className="text-muted-foreground text-sm">
             Cosmetic demo control — runs one synthetic transaction through the real pipeline with
-            the Gemini call forced to fail, so you can show the fallback path live. Does not call
-            Gemini or touch GEMINI_API_KEY, and never executes a real Razorpay refund (all rows are
-            tagged source: demo_simulated). Safe to click repeatedly.
+            the AI scoring call forced to fail, so you can show the fallback path live. Does not
+            call the AI provider or touch GROQ_API_KEY, and never executes a real Razorpay refund
+            (all rows are tagged source: demo_simulated). Safe to click repeatedly.
           </p>
         </div>
 
@@ -386,12 +394,12 @@ export function DashboardContent() {
           <div className="grid gap-3 md:grid-cols-2 pt-2">
             <Card>
               <CardHeader>
-                <CardDescription>Before — Gemini call</CardDescription>
+                <CardDescription>Before — AI scoring call</CardDescription>
                 <CardTitle className="text-base">Attempted, failed</CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
                 <Badge variant="warning">Simulated outage</Badge>
-                <p className="text-muted-foreground text-xs pt-1">{demoResult.geminiError}</p>
+                <p className="text-muted-foreground text-xs pt-1">{demoResult.scoringError}</p>
               </CardContent>
             </Card>
 
@@ -410,7 +418,17 @@ export function DashboardContent() {
                   ))}
                 </ul>
                 <div className="pt-1">
-                  <Badge variant={demoResult.policyDecision === "allow" ? "outline" : "warning"}>
+                  <Badge
+                    variant={
+                      demoResult.policyDecision === "auto_refund"
+                        ? "refund"
+                        : demoResult.policyDecision === "allow"
+                          ? "outline"
+                          : "warning"
+                    }
+                    className="gap-1"
+                  >
+                    <DecisionIcon decision={demoResult.policyDecision} className="size-3" />
                     Policy: {demoResult.policyDecision}
                   </Badge>
                 </div>
@@ -433,7 +451,7 @@ export function DashboardContent() {
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Recent transactions</h2>
         <p className="text-muted-foreground text-sm">
-          Most recent 20 processed transactions. Click a row for Gemini/fallback reasons and the
+          Most recent 20 processed transactions. Click a row for AI/fallback reasons and the
           policy gate's decision.
         </p>
         <TransactionsTable rows={recentRows} />
