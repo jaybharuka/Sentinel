@@ -16,6 +16,7 @@ import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
+import { RiskGauge } from "@/components/brand/RiskGauge";
 import { SIGNAL_CATEGORIES, SIGNAL_DEFS } from "@/components/dashboard/riskSignals";
 import { GettingStarted } from "@/components/dashboard/GettingStarted";
 
@@ -424,6 +425,7 @@ export function DashboardContent() {
             </div>
             <TransactionsTable
               rows={recentRows.slice(0, 5)}
+              bounds={bounds}
               emptyMessage="No transactions yet."
               emptyAction={
                 <div className="flex justify-center gap-2">
@@ -642,6 +644,7 @@ export function DashboardContent() {
 
           <TransactionsTable
             rows={auditRows}
+            bounds={bounds}
             emptyMessage="No transactions match these filters."
             emptyAction={
               <div className="flex justify-center gap-2">
@@ -710,6 +713,18 @@ export function DashboardContent() {
                     info="Above this risk score, a transaction gets flagged for a human to look at, even if it doesn't qualify for auto-refund."
                   />
                 </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardDescription>Risk zones</CardDescription>
+                    <CardTitle className="text-lg">
+                      Where a score lands decides what happens
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RiskGauge holdThreshold={bounds.holdThreshold} refundThreshold={bounds.minRiskScore} />
+                  </CardContent>
+                </Card>
 
                 <Card>
                   <CardHeader>

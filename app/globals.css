@@ -12,7 +12,11 @@
   actual state machine, so the color coding carries real meaning.
 */
 :root {
-  --radius: 0.5rem;
+  /* Tighter than shadcn's 0.5rem default (sm=2px, md=4px, lg=6px, xl=10px)
+     - a more precise, instrument-panel feel than the soft/rounded default,
+     applied everywhere via the --radius-* tokens below so every rounded-*
+     utility across the app inherits it without touching each component. */
+  --radius: 0.375rem;
 
   --background: oklch(0.975 0.006 264);
   --foreground: oklch(0.16 0.02 264);

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
+import { RiskGauge } from "@/components/brand/RiskGauge";
 import { SIGNAL_DEFS, countContributedSignals } from "@/components/dashboard/riskSignals";
 import {
   Table,
@@ -113,7 +114,10 @@ export function TransactionsTable({
   rows,
   emptyMessage = "No transactions match these filters.",
   emptyAction,
+  bounds,
 }) {
+  const holdThreshold = bounds?.holdThreshold ?? 0.6;
+  const refundThreshold = bounds?.minRiskScore ?? 0.9;
   const [expandedId, setExpandedId] = useState(null);
   const [overrides, setOverrides] = useState({});
   const [retryingId, setRetryingId] = useState(null);
@@ -202,7 +206,19 @@ export function TransactionsTable({
                   </TableCell>
                   <TableCell className="font-mono text-xs">{formatINR(row.amount)}</TableCell>
                   <TableCell className="font-mono text-xs">
-                    {row.riskScore != null ? row.riskScore.toFixed(2) : "–"}
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 shrink-0">
+                        {row.riskScore != null ? row.riskScore.toFixed(2) : "–"}
+                      </span>
+                      {row.riskScore != null && (
+                        <RiskGauge
+                          riskScore={row.riskScore}
+                          holdThreshold={holdThreshold}
+                          refundThreshold={refundThreshold}
+                          size="xs"
+                        />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell><SignalsBadge features={row.features} /></TableCell>
                   <TableCell><DecisionBadge decision={row.policyDecision} /></TableCell>
@@ -278,6 +294,15 @@ export function TransactionsTable({
                           confidence: {row.confidence != null ? row.confidence.toFixed(2) : "–"} · email:{" "}
                           {row.email} · ip: {row.ipCountry} → billing: {row.billingCountry}
                         </div>
+                        {row.riskScore != null && (
+                          <div className="max-w-xs pt-2">
+                            <RiskGauge
+                              riskScore={row.riskScore}
+                              holdThreshold={holdThreshold}
+                              refundThreshold={refundThreshold}
+                            />
+                          </div>
+                        )}
                         {row.features && (
                           <div className="pt-2">
                             <div className="text-muted-foreground text-xs uppercase tracking-wide pb-1.5">

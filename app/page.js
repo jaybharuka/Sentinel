@@ -57,7 +57,7 @@ export default function Home() {
             </div>
           </div>
 
-          <Card className="border-border/80 shadow-sm">
+          <Card className="border-border/80">
             <CardContent className="pt-2">
               <GateVisualization />
             </CardContent>
