@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
+import { SIGNAL_DEFS, countContributedSignals } from "@/components/dashboard/riskSignals";
 import {
   Table,
   TableBody,
@@ -30,6 +31,7 @@ const COLUMN_INFO = {
   Decision: "What the policy gate decided to do about this transaction, based on the risk score and the merchant's configured bounds.",
   Action: "What actually happened as a result of the decision — for auto-refund, whether the real Razorpay refund call succeeded.",
   Source: "Whether the AI model scored this transaction directly, or the backup rule-based system did (usually because the model provider's rate limit was hit).",
+  Signals: "How many of the 12 deterministic risk signals (see the Risk Signals panel above) looked risky on this specific transaction.",
 };
 
 function formatINR(amount) {
@@ -73,6 +75,12 @@ function SourceBadge({ usedFallback }) {
       />
     </span>
   );
+}
+
+function SignalsBadge({ features }) {
+  const count = countContributedSignals(features);
+  const variant = count === 0 ? "outline" : count <= 2 ? "warning" : "destructive";
+  return <Badge variant={variant}>{count}/12 flagged</Badge>;
 }
 
 // refundExecuted is a real tri-state: true (confirmed success), false (no
@@ -143,6 +151,11 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
             </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1">
+                Signals <InfoTooltip text={COLUMN_INFO.Signals} />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1">
                 Decision <InfoTooltip text={COLUMN_INFO.Decision} />
               </span>
             </TableHead>
@@ -182,6 +195,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                   <TableCell className="font-mono text-xs">
                     {row.riskScore != null ? row.riskScore.toFixed(2) : "—"}
                   </TableCell>
+                  <TableCell><SignalsBadge features={row.features} /></TableCell>
                   <TableCell><DecisionBadge decision={row.policyDecision} /></TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {row.actionTaken}
@@ -205,7 +219,7 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                 </TableRow>
                 {isExpanded && (
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableCell colSpan={8} className="whitespace-normal py-4">
+                    <TableCell colSpan={9} className="whitespace-normal py-4">
                       <div className="space-y-2 text-sm">
                         <div className="flex items-start justify-between gap-4">
                           <p className="font-medium">
@@ -257,15 +271,31 @@ export function TransactionsTable({ rows, emptyMessage = "No transactions match 
                         </div>
                         {row.features && (
                           <div className="pt-2">
-                            <div className="text-muted-foreground text-xs uppercase tracking-wide pb-1">
-                              Raw signals ({Object.keys(row.features).length})
+                            <div className="text-muted-foreground text-xs uppercase tracking-wide pb-1.5">
+                              Risk signals ({countContributedSignals(row.features)}/12 flagged)
                             </div>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-xs text-muted-foreground sm:grid-cols-3">
-                              {Object.entries(row.features).map(([key, value]) => (
-                                <div key={key}>
-                                  {key}: {value === null || value === undefined ? "—" : String(value)}
-                                </div>
-                              ))}
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                              {SIGNAL_DEFS.map((def) => {
+                                const flagged = def.contributed(row.features);
+                                return (
+                                  <div
+                                    key={def.key}
+                                    className={
+                                      "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs " +
+                                      (flagged
+                                        ? "bg-warning/10 ring-1 ring-warning/30"
+                                        : "text-muted-foreground")
+                                    }
+                                  >
+                                    <def.Icon
+                                      className={`size-3.5 shrink-0 ${flagged ? "text-warning" : "text-muted-foreground/70"}`}
+                                    />
+                                    <span className={`truncate ${flagged ? "font-medium text-foreground" : ""}`}>
+                                      {def.label}: {def.describe(row.features[def.key])}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
