@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ["renewable-capture-heat-individual.trycloudflare.com"],
+  allowedDevOrigins: ["hamlet-prance-washed.ngrok-free.dev"],
 };
 
 export default nextConfig;
