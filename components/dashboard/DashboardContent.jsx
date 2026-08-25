@@ -225,9 +225,14 @@ export function DashboardContent() {
             Explainable fraud &amp; chargeback risk guard — audit trail and held-out test metrics.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/demo-payment">Try a live test payment →</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/demo-payment">Quick test payment</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/demo-store">Visit demo store →</Link>
+          </Button>
+        </div>
       </div>
 
       {/* How this works */}
