@@ -1,17 +1,56 @@
 import crypto from "crypto";
+import Razorpay from "razorpay";
 import { prisma } from "@/lib/prisma";
 import { ingestTransaction } from "@/lib/ingestTransaction";
 import { DEFAULT_MERCHANT_ID } from "@/lib/merchantSettings";
 
-// Known scope boundary, not a bug: this webhook has no way to identify
-// which merchant a payment belongs to beyond "whichever merchant's
-// RAZORPAY_KEY_ID/RAZORPAY_WEBHOOK_SECRET are configured in this
-// deployment's .env" - there's no per-merchant Razorpay OAuth/Connect
-// integration yet, so every webhook-originated transaction is hard-coded
-// to DEFAULT_MERCHANT_ID regardless of who's logged into the dashboard.
-// A real multi-tenant build would look up the merchant by which
-// RAZORPAY_KEY_ID/webhook secret the request matches (one per merchant,
-// stored on their MerchantSettings row) instead of a single shared .env.
+// Merchant attribution: our own in-app checkout (see
+// app/api/checkout/create-order/route.js) stashes the logged-in merchant's
+// ID in the Razorpay Order's `notes` at creation time. This webhook fetches
+// the order back by payment.order_id and reads that note to attribute the
+// transaction to the right merchant, instead of hard-coding
+// DEFAULT_MERCHANT_ID for everything. Falls back to DEFAULT_MERCHANT_ID for
+// anything that didn't originate from our checkout flow - a Payment Link
+// or QR code created directly in Razorpay's own dashboard, for example,
+// carries no such note and has no order at all in some cases - or if the
+// noted merchant no longer exists. There is still no true multi-tenant
+// Razorpay integration (one shared RAZORPAY_KEY_ID/WEBHOOK_SECRET for every
+// merchant in this deployment's .env - a real one would need per-merchant
+// Razorpay Connect/OAuth), but attribution *within* that shared account is
+// now correct for the flow this app actually drives payments through.
+let razorpayInstance = null;
+function getRazorpayClient() {
+  if (razorpayInstance) return razorpayInstance;
+  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) {
+    throw new Error("RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET is not configured");
+  }
+  razorpayInstance = new Razorpay({ key_id, key_secret });
+  return razorpayInstance;
+}
+
+async function resolveMerchantId(payment) {
+  if (!payment.order_id) return DEFAULT_MERCHANT_ID;
+
+  try {
+    const client = getRazorpayClient();
+    const order = await client.orders.fetch(payment.order_id);
+    const merchantId = order?.notes?.merchantId;
+    if (!merchantId) return DEFAULT_MERCHANT_ID;
+
+    const exists = await prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { id: true },
+    });
+    return exists ? merchantId : DEFAULT_MERCHANT_ID;
+  } catch (err) {
+    console.warn(
+      `Could not resolve merchant for order ${payment.order_id}, falling back to default: ${err.message || err}`
+    );
+    return DEFAULT_MERCHANT_ID;
+  }
+}
 
 // Razorpay requires a 2xx response within 5 seconds or it treats the
 // delivery as failed and retries. AI scoring (lib/aiScoring.js's
@@ -36,16 +75,18 @@ function deriveCountries(card) {
 }
 
 async function mapPaymentEvent(payment) {
+  const merchantId = await resolveMerchantId(payment);
   const email = payment.email || "unknown@unknown";
   const customerId = payment.contact || payment.customer_id || null;
   const { ipCountry, billingCountry } = deriveCountries(payment.card);
 
   // Prisma's JSON path filtering isn't reliable on SQLite, so - matching
   // lib/featureExtractor.js - fetch prior rows and match in JS instead.
-  // Scoped to this merchant so one merchant's dispute/customer history
-  // never leaks into another's isNewCustomer/previousChargebacks signals.
+  // Scoped to the resolved merchant so one merchant's dispute/customer
+  // history never leaks into another's isNewCustomer/previousChargebacks
+  // signals.
   const allTxns = await prisma.transaction.findMany({
-    where: { merchantId: DEFAULT_MERCHANT_ID },
+    where: { merchantId },
     select: { email: true, features: true, disputedAt: true },
   });
   const priorTxns = allTxns.filter(
@@ -65,6 +106,7 @@ async function mapPaymentEvent(payment) {
     isNewCustomer: priorTxns.length === 0,
     previousChargebacks: priorTxns.filter((t) => t.disputedAt).length,
     source: "razorpay_live",
+    merchantId,
   };
 }
 
