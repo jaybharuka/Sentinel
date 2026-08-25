@@ -112,7 +112,7 @@ export function SettingsContent() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Policy bounds</CardTitle>
+            <CardTitle className="font-display text-xl">Policy bounds</CardTitle>
             <CardDescription>Merchant: {form.merchantId}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -168,7 +168,7 @@ export function SettingsContent() {
       {form && (
         <Card>
           <CardHeader>
-            <CardTitle>Public API key</CardTitle>
+            <CardTitle className="font-display text-xl">Public API key</CardTitle>
             <CardDescription>
               Read-only access to your transaction data via the versioned v1 API. Anyone with
               this key can read your transaction data — treat it like a password.
@@ -176,7 +176,7 @@ export function SettingsContent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-3">
-              <code className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs break-all">
+              <code className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs break-all">
                 {form.apiKey}
               </code>
               <Button

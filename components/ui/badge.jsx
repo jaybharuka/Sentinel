@@ -21,6 +21,8 @@ const badgeVariants = cva(
           "border-transparent bg-success text-success-foreground",
         warning:
           "border-transparent bg-warning text-warning-foreground",
+        refund:
+          "border-transparent bg-refund text-refund-foreground",
       },
     },
     defaultVariants: {

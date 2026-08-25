@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { COOKIE_NAME } from "@/lib/sessionConstants";
 
-const PROTECTED_PATHS = ["/dashboard", "/settings"];
+const PROTECTED_PATHS = ["/dashboard", "/settings", "/demo-payment"];
 const AUTH_PATHS = ["/signup", "/login"];
 
 async function hasValidSession(request) {
@@ -37,5 +37,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/settings/:path*", "/signup", "/login"],
+  matcher: ["/dashboard/:path*", "/settings/:path*", "/demo-payment/:path*", "/signup", "/login"],
 };

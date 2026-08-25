@@ -43,7 +43,7 @@ export function LoginForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Log in</CardTitle>
+        <CardTitle className="font-display text-xl">Log in</CardTitle>
         <CardDescription>Access your merchant dashboard.</CardDescription>
       </CardHeader>
       <CardContent>

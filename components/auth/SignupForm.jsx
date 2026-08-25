@@ -43,7 +43,7 @@ export function SignupForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create your merchant account</CardTitle>
+        <CardTitle className="font-display text-xl">Create your merchant account</CardTitle>
         <CardDescription>Get your own dashboard, policy settings, and API key.</CardDescription>
       </CardHeader>
       <CardContent>
