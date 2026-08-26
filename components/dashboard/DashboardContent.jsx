@@ -72,22 +72,39 @@ function formatINR(value) {
   return `₹${Number(value ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
-function StatCard({ label, value, caption, info }) {
+// One dominant, unboxed number per stat group instead of a row of identical
+// boxes - the headline figure for that section (which number is "dominant"
+// varies section to section, deliberately, so the five stat groups on this
+// page don't all repeat the same shape). Supporting figures sit beside it as
+// a compact list, not a matching grid of their own.
+function FeaturedStat({ label, value, caption, info }) {
   return (
-    <Card className="border-border/80">
-      <CardHeader>
-        <CardDescription className="flex items-center gap-1 text-xs uppercase tracking-wide">
-          {label}
-          {info && <InfoTooltip text={info} />}
-        </CardDescription>
-        <CardTitle className="font-mono text-2xl font-semibold tracking-tight">{value}</CardTitle>
-      </CardHeader>
-      {caption && (
-        <CardContent>
-          <p className="text-muted-foreground text-xs">{caption}</p>
-        </CardContent>
-      )}
-    </Card>
+    <div className="min-w-0">
+      <span className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+        {info && <InfoTooltip text={info} />}
+      </span>
+      <span className="block font-mono text-5xl font-semibold leading-none tracking-tight sm:text-6xl">
+        {value}
+      </span>
+      {caption && <p className="mt-2 max-w-xs text-xs text-muted-foreground">{caption}</p>}
+    </div>
+  );
+}
+
+function StatList({ items, className }) {
+  return (
+    <dl className={`divide-y divide-border border-t border-border ${className || ""}`}>
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center justify-between gap-4 py-2">
+          <dt className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+            {item.label}
+            {item.info && <InfoTooltip text={item.info} />}
+          </dt>
+          <dd className="font-mono text-sm font-medium text-right">{item.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -377,21 +394,20 @@ export function DashboardContent() {
                   {!metrics ? (
                     <p className="text-muted-foreground text-sm">Loading…</p>
                   ) : (
-                    <StaggerContainer className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                      <StaggerItem>
-                        <StatCard label="Precision" value={formatPercent(metrics.precision)} />
-                      </StaggerItem>
-                      <StaggerItem>
-                        <StatCard label="Recall" value={formatPercent(metrics.recall)} />
-                      </StaggerItem>
-                      <StaggerItem>
-                        <StatCard
-                          label="Fallback rate"
-                          value={formatPercent(metrics.fallbackRate)}
-                          info="How often the backup rule-based scorer ran instead of the AI model."
-                        />
-                      </StaggerItem>
-                    </StaggerContainer>
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                      <FeaturedStat label="Recall" value={formatPercent(metrics.recall)} />
+                      <StatList
+                        className="sm:max-w-xs sm:flex-1"
+                        items={[
+                          { label: "Precision", value: formatPercent(metrics.precision) },
+                          {
+                            label: "Fallback rate",
+                            value: formatPercent(metrics.fallbackRate),
+                            info: "How often the backup rule-based scorer ran instead of the AI model.",
+                          },
+                        ]}
+                      />
+                    </div>
                   )}
                 </section>
               </StaggerItem>
@@ -509,20 +525,28 @@ export function DashboardContent() {
                   {!metrics ? (
                     <p className="text-muted-foreground text-sm">Loading metrics…</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                      <StatCard label="Precision" value={formatPercent(metrics.precision)} />
-                      <StatCard label="Recall" value={formatPercent(metrics.recall)} />
-                      <StatCard label="F1" value={metrics.f1 != null ? metrics.f1.toFixed(3) : "–"} />
-                      <StatCard
-                        label="False-positive cost"
-                        value={formatINR(metrics.falsePositiveCost)}
-                        caption="₹ value of legitimate transactions wrongly flagged/refunded"
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                      <FeaturedStat
+                        label="F1"
+                        value={metrics.f1 != null ? metrics.f1.toFixed(3) : "–"}
+                        caption="Harmonic mean of precision and recall on the 400-row held-out synthetic test set."
                       />
-                      <StatCard
-                        label="Fallback rate"
-                        value={formatPercent(metrics.fallbackRate)}
-                        info="How often the backup rule-based scorer ran instead of the AI model."
-                        caption={`${formatPercent(metrics.fallbackRate)} of transactions were scored by the backup rule-based system instead of the AI, usually due to rate limits on the model provider. This is expected and demonstrates graceful failure handling, not a bug. Every one of those calls still passed through the same policy gate.`}
+                      <StatList
+                        className="sm:max-w-sm sm:flex-1"
+                        items={[
+                          { label: "Precision", value: formatPercent(metrics.precision) },
+                          { label: "Recall", value: formatPercent(metrics.recall) },
+                          {
+                            label: "False-positive cost",
+                            value: formatINR(metrics.falsePositiveCost),
+                            info: "₹ value of legitimate transactions wrongly flagged/refunded.",
+                          },
+                          {
+                            label: "Fallback rate",
+                            value: formatPercent(metrics.fallbackRate),
+                            info: "How often the backup rule-based scorer ran instead of the AI model, usually due to rate limits on the model provider. Every one of those calls still passed through the same policy gate.",
+                          },
+                        ]}
                       />
                     </div>
                   )}
@@ -555,21 +579,27 @@ export function DashboardContent() {
                     </p>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                        <StatCard label="Precision" value={formatPercent(benchmarkMetrics.precision)} />
-                        <StatCard label="Recall" value={formatPercent(benchmarkMetrics.recall)} />
-                        <StatCard
-                          label="F1"
-                          value={benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "–"}
+                      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                        <FeaturedStat
+                          label="Recall"
+                          value={formatPercent(benchmarkMetrics.recall)}
+                          caption="Deliberately near-zero on this dataset - see the honest-abstention note below."
                         />
-                        <StatCard
-                          label="Scored so far"
-                          value={`${benchmarkMetrics.totalScored} / ${benchmarkMetrics.datasetSize}`}
-                          caption="rows from the sampled subset run through the pipeline"
-                        />
-                        <StatCard
-                          label="Fallback rate"
-                          value={formatPercent(benchmarkMetrics.fallbackRate)}
+                        <StatList
+                          className="sm:max-w-sm sm:flex-1"
+                          items={[
+                            { label: "Precision", value: formatPercent(benchmarkMetrics.precision) },
+                            {
+                              label: "F1",
+                              value: benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "–",
+                            },
+                            {
+                              label: "Scored so far",
+                              value: `${benchmarkMetrics.totalScored} / ${benchmarkMetrics.datasetSize}`,
+                              info: "Rows from the sampled subset run through the pipeline.",
+                            },
+                            { label: "Fallback rate", value: formatPercent(benchmarkMetrics.fallbackRate) },
+                          ]}
                         />
                       </div>
 
@@ -645,14 +675,19 @@ export function DashboardContent() {
                     </p>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                        <StatCard label="Precision" value={formatPercent(liveMetrics.precision)} />
-                        <StatCard label="Recall" value={formatPercent(liveMetrics.recall)} />
-                        <StatCard
-                          label="F1"
-                          value={liveMetrics.f1 != null ? liveMetrics.f1.toFixed(3) : "–"}
+                      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                        <FeaturedStat label="N (confirmed outcomes)" value={liveMetrics.totalLabeled} />
+                        <StatList
+                          className="sm:max-w-xs sm:flex-1"
+                          items={[
+                            { label: "Precision", value: formatPercent(liveMetrics.precision) },
+                            { label: "Recall", value: formatPercent(liveMetrics.recall) },
+                            {
+                              label: "F1",
+                              value: liveMetrics.f1 != null ? liveMetrics.f1.toFixed(3) : "–",
+                            },
+                          ]}
                         />
-                        <StatCard label="N (confirmed outcomes)" value={liveMetrics.totalLabeled} />
                       </div>
                       <p className="text-muted-foreground text-xs italic">
                         N={liveMetrics.totalLabeled} real transaction
@@ -767,36 +802,33 @@ export function DashboardContent() {
                   <p className="text-muted-foreground text-sm">Loading policy bounds…</p>
                 ) : (
                   <>
-                    <StaggerContainer className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                      <StaggerItem>
-                        <StatCard
-                          label="Max single auto-refund"
-                          value={formatINR(bounds.maxSingleRefund)}
-                          info="The system will never auto-refund more than this amount in a single transaction, no matter how confident the AI is."
-                        />
-                      </StaggerItem>
-                      <StaggerItem>
-                        <StatCard
-                          label="Daily refund budget"
-                          value={formatINR(bounds.dailyRefundCap)}
-                          info="A hard ceiling on total auto-refunds per day across all transactions. Once hit, everything else gets flagged for a human instead."
-                        />
-                      </StaggerItem>
-                      <StaggerItem>
-                        <StatCard
-                          label="Auto-refund requires"
-                          value={`risk > ${bounds.minRiskScore} AND confidence > ${bounds.minConfidence}`}
-                          info="Both the risk score AND the confidence score have to clear their own bar before an auto-refund is considered. One high number alone isn't enough."
-                        />
-                      </StaggerItem>
-                      <StaggerItem>
-                        <StatCard
-                          label="Hold-for-review threshold"
-                          value={`risk > ${bounds.holdThreshold}`}
-                          info="Above this risk score, a transaction gets flagged for a human to look at, even if it doesn't qualify for auto-refund."
-                        />
-                      </StaggerItem>
-                    </StaggerContainer>
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                      <FeaturedStat
+                        label="Daily refund budget"
+                        value={formatINR(bounds.dailyRefundCap)}
+                        info="A hard ceiling on total auto-refunds per day across all transactions. Once hit, everything else gets flagged for a human instead."
+                      />
+                      <StatList
+                        className="sm:max-w-sm sm:flex-1"
+                        items={[
+                          {
+                            label: "Max single auto-refund",
+                            value: formatINR(bounds.maxSingleRefund),
+                            info: "The system will never auto-refund more than this amount in a single transaction, no matter how confident the AI is.",
+                          },
+                          {
+                            label: "Auto-refund requires",
+                            value: `risk > ${bounds.minRiskScore} AND confidence > ${bounds.minConfidence}`,
+                            info: "Both the risk score AND the confidence score have to clear their own bar before an auto-refund is considered.",
+                          },
+                          {
+                            label: "Hold-for-review threshold",
+                            value: `risk > ${bounds.holdThreshold}`,
+                            info: "Above this risk score, a transaction gets flagged for a human to look at, even if it doesn't qualify for auto-refund.",
+                          },
+                        ]}
+                      />
+                    </div>
 
                     <Card>
                       <CardHeader>

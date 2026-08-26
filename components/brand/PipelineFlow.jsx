@@ -1,7 +1,10 @@
-import { Webhook, Sparkles, GitBranch, FileCheck2, ArrowRight } from "lucide-react";
+import { Webhook, Sparkles, GitBranch, FileCheck2 } from "lucide-react";
 
 // A real, ordered pipeline (this is the literal request path, not a
 // generic feature list dressed up as steps) - see lib/ingestTransaction.js.
+// "dominant" marks the stage that's actually the point of the product (the
+// gate, not the AI) - it gets real type-scale/size weight instead of the
+// other three, rather than four identical boxes with an icon each.
 const STAGES = [
   {
     icon: Webhook,
@@ -16,7 +19,8 @@ const STAGES = [
   {
     icon: GitBranch,
     title: "The gate decides",
-    body: "Fixed rules, not the AI, check the score against your configured bounds and choose: allow, hold, or auto-refund.",
+    body: "Fixed rules, not the AI, check the score against your configured bounds and choose: allow, hold, or auto-refund. This is the one step the AI cannot override.",
+    dominant: true,
   },
   {
     icon: FileCheck2,
@@ -27,24 +31,31 @@ const STAGES = [
 
 export function PipelineFlow() {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
-      {STAGES.map((stage, i) => (
-        <div key={stage.title} className="relative flex items-start gap-4 md:flex-col md:gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary md:size-11">
-            <stage.icon className="size-5" aria-hidden="true" />
+    <ol className="relative max-w-2xl space-y-8">
+      <div className="absolute left-5 top-5 bottom-5 w-px bg-border" aria-hidden="true" />
+      {STAGES.map((stage) => (
+        <li key={stage.title} className="relative flex items-start gap-5">
+          <div
+            className={`relative z-10 flex shrink-0 items-center justify-center rounded-full border bg-card text-primary ${
+              stage.dominant ? "size-14 border-primary/40" : "size-10 border-border"
+            }`}
+          >
+            <stage.icon className={stage.dominant ? "size-6" : "size-5"} aria-hidden="true" />
           </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold">{stage.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{stage.body}</p>
+          <div className={`min-w-0 ${stage.dominant ? "pt-1" : "pt-2"}`}>
+            <h3 className={stage.dominant ? "font-display text-xl font-semibold" : "text-sm font-semibold"}>
+              {stage.title}
+            </h3>
+            <p
+              className={`mt-1 text-muted-foreground ${
+                stage.dominant ? "max-w-md text-base" : "max-w-sm text-sm"
+              }`}
+            >
+              {stage.body}
+            </p>
           </div>
-          {i < STAGES.length - 1 && (
-            <ArrowRight
-              className="absolute -right-2 top-4 hidden size-4 text-border md:block"
-              aria-hidden="true"
-            />
-          )}
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }

@@ -27,54 +27,63 @@ export function GateVisualization() {
 
   return (
     <div className="w-full">
-      <div className="mb-2 flex items-baseline justify-between">
-        <span className="font-mono text-xs text-muted-foreground">risk score</span>
-        <span
-          className={`font-mono text-sm font-semibold transition-opacity duration-700 ${settled ? "opacity-100" : "opacity-0"}`}
-        >
-          {DEMO_RISK.toFixed(2)}
-        </span>
-      </div>
-
-      <div className="relative flex h-3 w-full overflow-hidden rounded-full bg-muted">
+      <div className="relative flex h-6 w-full overflow-hidden rounded-full bg-muted sm:h-8">
         {ZONES.map((z) => (
           <div key={z.key} className={z.colorClass} style={{ width: `${z.widthPct}%` }} />
         ))}
         <motion.div
-          className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow"
+          className="absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-background bg-foreground shadow sm:size-8"
           initial={{ left: "3%" }}
           animate={{ left: settled ? `${DEMO_RISK * 100}%` : "3%" }}
           transition={{ type: "spring", stiffness: 140, damping: 15 }}
         />
       </div>
 
-      <div className="mt-2 flex justify-between font-mono text-[11px] text-muted-foreground">
-        <span>0.0</span>
-        <span>0.6</span>
-        <span>0.9</span>
-        <span>1.0</span>
+      {/* The two numbers that actually decide, given real typographic weight
+          instead of buried in a small axis-label row - positioned at their
+          real percentage along the bar, not decoratively placed. 0.9 is
+          anchored from the right so it can never clip the edge on narrow
+          viewports; 0.0/1.0 stay small since they're just the axis bounds. */}
+      <div className="relative mt-3 h-11 sm:mt-4 sm:h-16">
+        <span className="absolute left-0 top-1 font-mono text-[10px] text-muted-foreground sm:text-xs">
+          0.0
+        </span>
+        <span
+          className="absolute top-0 -translate-x-1/2 font-display text-2xl font-semibold leading-none sm:text-4xl lg:text-5xl"
+          style={{ left: "60%" }}
+        >
+          0.6
+        </span>
+        <span
+          className="absolute top-0 -translate-x-full font-display text-2xl font-semibold leading-none sm:text-4xl lg:text-5xl"
+          style={{ left: "90%" }}
+        >
+          0.9
+        </span>
+        <span className="absolute right-0 top-1 font-mono text-[10px] text-muted-foreground sm:text-xs">
+          1.0
+        </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3 text-xs">
-        <div>
-          <div className="flex items-center gap-1.5 font-medium text-success">
-            <span className="size-1.5 rounded-full bg-success" /> Allow
-          </div>
-          <p className="mt-0.5 text-muted-foreground">risk ≤ 0.6</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 font-medium text-warning">
-            <span className="size-1.5 rounded-full bg-warning" /> Hold for review
-          </div>
-          <p className="mt-0.5 text-muted-foreground">risk &gt; 0.6</p>
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 font-medium text-refund">
-            <span className="size-1.5 rounded-full bg-refund" /> Auto-refund
-          </div>
-          <p className="mt-0.5 text-muted-foreground">risk &gt; 0.9, confidence &gt; 0.8, ≤ ₹2,000</p>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs sm:text-sm">
+        <span className="flex items-center gap-1.5 font-medium text-success">
+          <span className="size-1.5 rounded-full bg-success" /> Allow, risk ≤ 0.6
+        </span>
+        <span className="flex items-center gap-1.5 font-medium text-warning">
+          <span className="size-1.5 rounded-full bg-warning" /> Hold for review, risk &gt; 0.6
+        </span>
+        <span className="flex items-center gap-1.5 font-medium text-refund">
+          <span className="size-1.5 rounded-full bg-refund" /> Auto-refund, risk &gt; 0.9
+        </span>
       </div>
+
+      <p
+        className={`mt-3 font-mono text-xs text-muted-foreground transition-opacity duration-700 ${settled ? "opacity-100" : "opacity-0"}`}
+      >
+        Live example: a transaction scores{" "}
+        <span className="text-foreground font-semibold">{DEMO_RISK.toFixed(2)}</span> → auto-refund
+        (confidence &gt; 0.8, ≤ ₹2,000).
+      </p>
     </div>
   );
 }
