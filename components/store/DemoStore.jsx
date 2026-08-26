@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Script from "next/script";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -15,6 +16,17 @@ import { Badge } from "@/components/ui/badge";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { useRazorpayCheckout } from "@/components/checkout/useRazorpayCheckout";
 import { AnalyzingProgress } from "@/components/checkout/AnalyzingProgress";
+import { useToast } from "@/components/ui/toast";
+
+// Same fade+slide language as the dashboard's tab-body transitions - each
+// checkout stage (checkout/verifying/found/etc.) gets one, keyed by stage
+// name so AnimatePresence swaps them instead of an instant cut.
+const STAGE_VARIANTS = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -6 },
+};
+const STAGE_TRANSITION = { duration: 0.18, ease: [0.16, 1, 0.3, 1] };
 
 // Matches app/api/checkout/create-order/route.js's MAX_AMOUNT_RUPEES - kept
 // as a duplicated client-side constant (not imported) since that route
@@ -29,9 +41,16 @@ function formatINR(amount) {
 }
 
 export function DemoStore({ products }) {
+  const { toast } = useToast();
   const [scriptReady, setScriptReady] = useState(false);
   const [cart, setCart] = useState({}); // productId -> qty
   const { stage, error, paymentId, foundTransaction, pay, reset } = useRazorpayCheckout();
+
+  useEffect(() => {
+    if ((stage === "error" || stage === "verify_failed") && error) {
+      toast({ title: "Payment couldn't complete", description: error, variant: "error" });
+    }
+  }, [stage, error, toast]);
 
   const cartItems = useMemo(
     () =>
@@ -118,7 +137,18 @@ export function DemoStore({ products }) {
                       >
                         −
                       </Button>
-                      <span className="font-mono text-sm">{cart[product.id]}</span>
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={cart[product.id]}
+                          initial={{ opacity: 0, scale: 0.7 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.7 }}
+                          transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                          className="font-mono text-sm"
+                        >
+                          {cart[product.id]}
+                        </motion.span>
+                      </AnimatePresence>
                       <Button
                         type="button"
                         variant="outline"
@@ -155,12 +185,22 @@ export function DemoStore({ products }) {
               ) : (
                 <>
                   <ul className="space-y-2">
-                    {cartItems.map(({ product, qty }) => (
-                      <li key={product.id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="line-clamp-1">{qty}x {product.title}</span>
-                        <span className="font-mono shrink-0">{formatINR(product.price * qty)}</span>
-                      </li>
-                    ))}
+                    <AnimatePresence initial={false}>
+                      {cartItems.map(({ product, qty }) => (
+                        <motion.li
+                          key={product.id}
+                          layout
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                          className="flex items-center justify-between gap-2 text-sm overflow-hidden"
+                        >
+                          <span className="line-clamp-1">{qty}x {product.title}</span>
+                          <span className="font-mono shrink-0">{formatINR(product.price * qty)}</span>
+                        </motion.li>
+                      ))}
+                    </AnimatePresence>
                   </ul>
                   <div className="flex items-center justify-between border-t border-border pt-3 text-sm font-medium">
                     <span>Total</span>
@@ -192,83 +232,95 @@ export function DemoStore({ products }) {
         </div>
       )}
 
-      {stage === "checkout" && (
-        <Card>
-          <CardContent className="py-6">
-            <p className="text-muted-foreground text-sm">
-              Razorpay's checkout should be open now. Complete or close it to continue.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {stage === "verifying" && (
-        <Card>
-          <CardContent className="py-6">
-            <p className="text-muted-foreground text-sm">Verifying payment signature…</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {stage === "verify_failed" && (
-        <Card>
-          <CardContent className="space-y-3 py-6">
-            <p className="text-destructive text-sm">{error}</p>
-            <Button variant="outline" size="sm" onClick={reset}>
-              Back to store
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {stage === "analyzing" && (
-        <Card>
-          <CardContent className="space-y-3 py-6">
-            <p className="text-sm font-medium">
-              Purchase received. Sentinel is analyzing this transaction now…
-            </p>
-            <AnalyzingProgress />
-            <p className="text-muted-foreground font-mono text-xs">payment_id: {paymentId}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {stage === "found" && foundTransaction && (
-        <Card>
-          <CardContent className="space-y-3 py-6">
-            <p className="text-sm font-medium">Analysis complete.</p>
-            <div className="flex items-center gap-2 rounded-md border p-3">
-              <DecisionIcon decision={foundTransaction.policyDecision} className="size-5" />
-              <div>
-                <p className="text-sm font-medium">{foundTransaction.policyDecision}</p>
-                <p className="text-muted-foreground font-mono text-xs">
-                  risk {foundTransaction.riskScore?.toFixed(2)} · {formatINR(foundTransaction.amount)}
+      <AnimatePresence mode="wait">
+        {stage === "checkout" && (
+          <motion.div key="checkout" variants={STAGE_VARIANTS} initial="initial" animate="animate" exit="exit" transition={STAGE_TRANSITION}>
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-muted-foreground text-sm">
+                  Razorpay's checkout should be open now. Complete or close it to continue.
                 </p>
-              </div>
-              <Badge variant={foundTransaction.usedFallback ? "warning" : "success"} className="ml-auto">
-                {foundTransaction.usedFallback ? "Fallback" : "AI"}
-              </Badge>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild size="sm">
-                <Link href="/dashboard">View on dashboard</Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCart({});
-                  reset();
-                }}
-              >
-                Shop again
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {stage === "verifying" && (
+          <motion.div key="verifying" variants={STAGE_VARIANTS} initial="initial" animate="animate" exit="exit" transition={STAGE_TRANSITION}>
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-muted-foreground text-sm">Verifying payment signature…</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {stage === "verify_failed" && (
+          <motion.div key="verify_failed" variants={STAGE_VARIANTS} initial="initial" animate="animate" exit="exit" transition={STAGE_TRANSITION}>
+            <Card>
+              <CardContent className="space-y-3 py-6">
+                <p className="text-destructive text-sm">{error}</p>
+                <Button variant="outline" size="sm" onClick={reset}>
+                  Back to store
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {stage === "analyzing" && (
+          <motion.div key="analyzing" variants={STAGE_VARIANTS} initial="initial" animate="animate" exit="exit" transition={STAGE_TRANSITION}>
+            <Card>
+              <CardContent className="space-y-3 py-6">
+                <p className="text-sm font-medium">
+                  Purchase received. Sentinel is analyzing this transaction now…
+                </p>
+                <AnalyzingProgress />
+                <p className="text-muted-foreground font-mono text-xs">payment_id: {paymentId}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {stage === "found" && foundTransaction && (
+          <motion.div key="found" variants={STAGE_VARIANTS} initial="initial" animate="animate" exit="exit" transition={STAGE_TRANSITION}>
+            <Card>
+              <CardContent className="space-y-3 py-6">
+                <p className="text-sm font-medium">Analysis complete.</p>
+                <div className="flex items-center gap-2 rounded-md border p-3">
+                  <DecisionIcon decision={foundTransaction.policyDecision} className="size-5" />
+                  <div>
+                    <p className="text-sm font-medium">{foundTransaction.policyDecision}</p>
+                    <p className="text-muted-foreground font-mono text-xs">
+                      risk {foundTransaction.riskScore?.toFixed(2)} · {formatINR(foundTransaction.amount)}
+                    </p>
+                  </div>
+                  <Badge variant={foundTransaction.usedFallback ? "warning" : "success"} className="ml-auto">
+                    {foundTransaction.usedFallback ? "Fallback" : "AI"}
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  <Button asChild size="sm">
+                    <Link href="/dashboard">View on dashboard</Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCart({});
+                      reset();
+                    }}
+                  >
+                    Shop again
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
       {stage === "timeout" && (
+        <motion.div key="timeout" variants={STAGE_VARIANTS} initial="initial" animate="animate" exit="exit" transition={STAGE_TRANSITION}>
         <Card>
           <CardContent className="space-y-3 py-6">
             <p className="text-sm font-medium">Still analyzing. This is taking longer than usual.</p>
@@ -294,7 +346,9 @@ export function DemoStore({ products }) {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
       )}
+      </AnimatePresence>
     </>
   );
 }

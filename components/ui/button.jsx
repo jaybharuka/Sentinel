@@ -1,5 +1,8 @@
+"use client";
+
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
+import { motion } from "framer-motion";
 import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
@@ -34,13 +37,27 @@ const buttonVariants = cva(
   }
 );
 
+// One primitive-level change covers every button in the app: a small
+// hover lift and a satisfying press-down, spring-eased rather than a linear
+// CSS transition so it reads as physical, not animated-for-the-sake-of-it.
+// motion.create(Slot) forwards whileHover/whileTap through to whatever
+// asChild renders as (Link, etc.) the same way Slot forwards any other
+// prop - link-rendered buttons get the same feel as real <button>s.
+const MotionSlot = motion.create(Slot);
+const HOVER_TAP_PROPS = {
+  whileHover: { scale: 1.02 },
+  whileTap: { scale: 0.97 },
+  transition: { type: "spring", stiffness: 500, damping: 30 },
+};
+
 function Button({ className, variant, size, asChild = false, ...props }) {
-  const Comp = asChild ? Slot : "button";
+  const Comp = asChild ? MotionSlot : motion.button;
 
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      {...HOVER_TAP_PROPS}
       {...props}
     />
   );

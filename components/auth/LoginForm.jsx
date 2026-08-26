@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,11 @@ export function LoginForm() {
   }
 
   return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+    >
     <Card>
       <CardHeader>
         <CardTitle className="font-display text-xl">Log in</CardTitle>
@@ -66,5 +72,6 @@ export function LoginForm() {
         </form>
       </CardContent>
     </Card>
+    </motion.div>
   );
 }

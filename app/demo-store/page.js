@@ -4,6 +4,7 @@ import { getCurrentMerchant } from "@/lib/currentMerchant";
 import { Header } from "@/components/layout/Header";
 import { DemoStore } from "@/components/store/DemoStore";
 import { fetchDemoProducts } from "@/lib/demoProducts";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default async function DemoStorePage() {
   const merchant = await getCurrentMerchant();
@@ -26,7 +27,9 @@ export default async function DemoStorePage() {
         >
           ← Back to dashboard
         </Link>
-        <DemoStore products={products} />
+        <ToastProvider>
+          <DemoStore products={products} />
+        </ToastProvider>
       </div>
     </div>
   );

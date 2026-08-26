@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentMerchant } from "@/lib/currentMerchant";
 import { Header } from "@/components/layout/Header";
 import { CheckoutDemo } from "@/components/checkout/CheckoutDemo";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default async function DemoPaymentPage() {
   const merchant = await getCurrentMerchant();
@@ -18,7 +19,9 @@ export default async function DemoPaymentPage() {
         >
           ← Back to dashboard
         </Link>
-        <CheckoutDemo />
+        <ToastProvider>
+          <CheckoutDemo />
+        </ToastProvider>
       </div>
     </div>
   );

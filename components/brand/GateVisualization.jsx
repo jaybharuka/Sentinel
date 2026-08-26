@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 // The signature element: a literal rendering of the real policy gate
 // bounds (0.6 hold threshold, 0.9 auto-refund threshold, ₹2,000 cap - the
 // actual defaults in lib/policyGate.js), not a generic stat/gradient hero.
 // A transaction at risk 0.95 sweeps in and settles in the auto-refund
-// zone on mount - the one deliberate motion moment on the page.
+// zone on mount, spring-eased with a touch of overshoot rather than a
+// linear CSS transition - the one deliberate motion moment on the page.
 const ZONES = [
   { key: "allow", widthPct: 60, colorClass: "bg-success" },
   { key: "hold", widthPct: 30, colorClass: "bg-warning" },
@@ -38,9 +40,11 @@ export function GateVisualization() {
         {ZONES.map((z) => (
           <div key={z.key} className={z.colorClass} style={{ width: `${z.widthPct}%` }} />
         ))}
-        <div
-          className="motion-safe:transition-[left] motion-safe:duration-[1100ms] motion-safe:ease-out absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow"
-          style={{ left: settled ? `${DEMO_RISK * 100}%` : "3%" }}
+        <motion.div
+          className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow"
+          initial={{ left: "3%" }}
+          animate={{ left: settled ? `${DEMO_RISK * 100}%` : "3%" }}
+          transition={{ type: "spring", stiffness: 140, damping: 15 }}
         />
       </div>
 

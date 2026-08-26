@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentMerchant } from "@/lib/currentMerchant";
 import { Header } from "@/components/layout/Header";
 import { SettingsContent } from "@/components/settings/SettingsContent";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default async function SettingsPage() {
   const merchant = await getCurrentMerchant();
@@ -18,7 +19,9 @@ export default async function SettingsPage() {
         >
           ← Back to dashboard
         </Link>
-        <SettingsContent />
+        <ToastProvider>
+          <SettingsContent />
+        </ToastProvider>
       </div>
     </div>
   );

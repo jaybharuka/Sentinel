@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StaggerContainer, StaggerItem } from "@/components/motion/Stagger";
+import { useToast } from "@/components/ui/toast";
 
 const FIELDS = [
   {
@@ -40,9 +42,9 @@ const FIELDS = [
 ];
 
 export function SettingsContent() {
+  const { toast } = useToast();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
@@ -66,7 +68,13 @@ export function SettingsContent() {
       const data = await res.json();
       if (res.ok) {
         setForm(data);
-        setMessage({ type: "success", text: "API key regenerated. Update any integrations using the old key." });
+        toast({
+          title: "API key regenerated",
+          description: "Update any integrations using the old key.",
+          variant: "success",
+        });
+      } else {
+        toast({ title: "Regeneration failed", description: data.error || "Try again.", variant: "error" });
       }
     } finally {
       setRegenerating(false);
@@ -76,7 +84,6 @@ export function SettingsContent() {
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
-    setMessage(null);
     try {
       const res = await fetch("/api/settings", {
         method: "POST",
@@ -85,32 +92,34 @@ export function SettingsContent() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setMessage({ type: "error", text: data.error || "Save failed" });
+        toast({ title: "Save failed", description: data.error || "Try again.", variant: "error" });
         return;
       }
       setForm(data);
-      setMessage({ type: "success", text: "Settings saved." });
+      toast({ title: "Settings saved", description: "Takes effect on the next transaction processed.", variant: "success" });
     } catch {
-      setMessage({ type: "error", text: "Save failed" });
+      toast({ title: "Save failed", description: "Check your connection and try again.", variant: "error" });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Merchant policy settings</h1>
-        <p className="text-muted-foreground text-sm">
-          These bounds gate every money-moving decision the policy gate makes. Changes take
-          effect on the next transaction processed.
-        </p>
-      </div>
+    <StaggerContainer className="space-y-6">
+      <StaggerItem>
+        <div>
+          <h1 className="text-2xl font-semibold">Merchant policy settings</h1>
+          <p className="text-muted-foreground text-sm">
+            These bounds gate every money-moving decision the policy gate makes. Changes take
+            effect on the next transaction processed.
+          </p>
+        </div>
+      </StaggerItem>
 
       {!form ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : (
-        <Card>
+        <StaggerItem><Card>
           <CardHeader>
             <CardTitle className="font-display text-xl">Policy bounds</CardTitle>
             <CardDescription>Merchant: {form.merchantId}</CardDescription>
@@ -148,25 +157,14 @@ export function SettingsContent() {
                 <Button type="submit" disabled={saving}>
                   {saving ? "Saving…" : "Save settings"}
                 </Button>
-                {message && (
-                  <p
-                    className={
-                      message.type === "error"
-                        ? "text-destructive text-sm"
-                        : "text-success text-sm"
-                    }
-                  >
-                    {message.text}
-                  </p>
-                )}
               </div>
             </form>
           </CardContent>
-        </Card>
+        </Card></StaggerItem>
       )}
 
       {form && (
-        <Card>
+        <StaggerItem><Card>
           <CardHeader>
             <CardTitle className="font-display text-xl">Public API key</CardTitle>
             <CardDescription>
@@ -200,8 +198,8 @@ export function SettingsContent() {
               </pre>
             </div>
           </CardContent>
-        </Card>
+        </Card></StaggerItem>
       )}
-    </div>
+    </StaggerContainer>
   );
 }

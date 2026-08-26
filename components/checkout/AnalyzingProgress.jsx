@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 
 // Purely cosmetic time-based progression, not tied to real backend state -
@@ -36,18 +37,46 @@ export function AnalyzingProgress() {
         const done = i < activeIndex;
         const active = i === activeIndex;
         return (
-          <li key={step.label} className="flex items-center gap-2 text-sm">
-            {done ? (
-              <Check className="text-success size-4 shrink-0" />
-            ) : active ? (
-              <Loader2 className="text-primary size-4 shrink-0 animate-spin" />
-            ) : (
-              <span className="border-border size-4 shrink-0 rounded-full border" />
-            )}
+          <motion.li
+            key={step.label}
+            layout
+            className="flex items-center gap-2 text-sm"
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              {done ? (
+                <motion.span
+                  key="done"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  className="shrink-0"
+                >
+                  <Check className="text-success size-4" />
+                </motion.span>
+              ) : active ? (
+                <motion.span
+                  key="active"
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  className="shrink-0"
+                >
+                  <Loader2 className="text-primary size-4 animate-spin" />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="pending"
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  className="border-border size-4 shrink-0 rounded-full border"
+                />
+              )}
+            </AnimatePresence>
             <span className={done || active ? "text-foreground" : "text-muted-foreground"}>
               {step.label}
             </span>
-          </li>
+          </motion.li>
         );
       })}
     </ol>

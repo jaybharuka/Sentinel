@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -77,6 +78,17 @@ function SourceBadge({ usedFallback }) {
     </span>
   );
 }
+
+// Data rows fade+slide in on mount (opacity/y only, never a transform-based
+// "lift" - table rows don't handle scale/translate reliably inside a table
+// layout, so hover feedback below stays a background/glow change instead).
+// motion.create(TableRow) forwards the primitive's own classes/props
+// through untouched, same pattern as Button's motion.create(Slot).
+const MotionRow = motion.create(TableRow);
+const ROW_VARIANTS = {
+  hidden: { opacity: 0, y: 6 },
+  show: { opacity: 1, y: 0 },
+};
 
 function SignalsBadge({ features }) {
   const count = countContributedSignals(features);
@@ -187,14 +199,18 @@ export function TransactionsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((rawRow) => {
+          {rows.map((rawRow, index) => {
             const row = overrides[rawRow.id] || rawRow;
             const isExpanded = expandedId === row.id;
             return (
               <Fragment key={row.id}>
-                <TableRow
-                  className="cursor-pointer"
+                <MotionRow
+                  className="cursor-pointer transition-shadow hover:shadow-[inset_2px_0_0_var(--color-primary)]"
                   onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                  variants={ROW_VARIANTS}
+                  initial="hidden"
+                  animate="show"
+                  transition={{ duration: 0.18, delay: Math.min(index, 8) * 0.02 }}
                 >
                   <TableCell className="font-mono text-xs">
                     {row.txnId}
@@ -241,11 +257,24 @@ export function TransactionsTable({
                   <TableCell className="text-muted-foreground text-xs">
                     {formatTimestamp(row.timestamp)}
                   </TableCell>
-                </TableRow>
+                </MotionRow>
+                <AnimatePresence>
                 {isExpanded && (
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <MotionRow
+                    key="expanded"
+                    className="bg-muted/30 hover:bg-muted/30"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
                     <TableCell colSpan={9} className="whitespace-normal py-4">
-                      <div className="space-y-2 text-sm">
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.15, delay: 0.03, ease: [0.16, 1, 0.3, 1] }}
+                        className="space-y-2 text-sm"
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <p className="font-medium">
                             {row.actionTaken === "allow"
@@ -350,10 +379,11 @@ export function TransactionsTable({
                             )}
                           </div>
                         )}
-                      </div>
+                      </motion.div>
                     </TableCell>
-                  </TableRow>
+                  </MotionRow>
                 )}
+                </AnimatePresence>
               </Fragment>
             );
           })}
