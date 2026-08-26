@@ -7,8 +7,16 @@ export async function GET() {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // Scoped to source: "synthetic" - the held-out test set this endpoint is
+  // meant to report on. Without this, it silently blended in the Kaggle
+  // benchmark's rows too (also stored under this merchant, also labeled),
+  // which dragged recall down from its real 93% to a diluted 66% - the
+  // Kaggle rows are correctly near-zero-recall by design (see
+  // /api/metrics/benchmark's methodology note), but that's a different
+  // metric, not a defect in this one. Real razorpay_live transactions have
+  // their own separate endpoint (/api/metrics/live) for the same reason.
   const rows = await prisma.transaction.findMany({
-    where: { merchantId: merchant.id, isLabeledFraud: { not: null } },
+    where: { merchantId: merchant.id, source: "synthetic", isLabeledFraud: { not: null } },
   });
 
   let truePositives = 0;
