@@ -47,3 +47,22 @@ export function StaggerItem({ children, className, ...props }) {
     </motion.div>
   );
 }
+
+// For content below the fold (landing-page sections) - fades/slides in once
+// as it scrolls into view, rather than all at mount like StaggerContainer
+// above (which only makes sense for content that's visible immediately).
+// `once: true` so it doesn't re-trigger scrolling back up past it.
+export function RevealOnScroll({ children, className, ...props }) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+}

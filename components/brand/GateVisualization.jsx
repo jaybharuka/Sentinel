@@ -6,9 +6,9 @@ import { motion } from "framer-motion";
 // The signature element: a literal rendering of the real policy gate
 // bounds (0.6 hold threshold, 0.9 auto-refund threshold, ₹2,000 cap - the
 // actual defaults in lib/policyGate.js), not a generic stat/gradient hero.
-// A transaction at risk 0.95 sweeps in and settles in the auto-refund
-// zone on mount, spring-eased with a touch of overshoot rather than a
-// linear CSS transition - the one deliberate motion moment on the page.
+// A transaction at risk 0.95 glides in and settles in the auto-refund
+// zone on mount - a slow, no-overshoot tween (not a bouncy spring) so it
+// reads as a considered settle, not a toy animation.
 const ZONES = [
   { key: "allow", widthPct: 60, colorClass: "bg-success" },
   { key: "hold", widthPct: 30, colorClass: "bg-warning" },
@@ -35,7 +35,7 @@ export function GateVisualization() {
           className="absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-background bg-foreground shadow sm:size-8"
           initial={{ left: "3%" }}
           animate={{ left: settled ? `${DEMO_RISK * 100}%` : "3%" }}
-          transition={{ type: "spring", stiffness: 140, damping: 15 }}
+          transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
         />
       </div>
 

@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { Webhook, Sparkles, GitBranch, FileCheck2 } from "lucide-react";
 
 // A real, ordered pipeline (this is the literal request path, not a
@@ -32,9 +35,23 @@ const STAGES = [
 export function PipelineFlow() {
   return (
     <ol className="relative max-w-2xl space-y-8">
-      <div className="absolute left-5 top-5 bottom-5 w-px bg-border" aria-hidden="true" />
-      {STAGES.map((stage) => (
-        <li key={stage.title} className="relative flex items-start gap-5">
+      <motion.div
+        className="absolute left-5 top-5 bottom-5 w-px origin-top bg-border"
+        aria-hidden="true"
+        initial={{ scaleY: 0 }}
+        whileInView={{ scaleY: 1 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      />
+      {STAGES.map((stage, i) => (
+        <motion.li
+          key={stage.title}
+          className="relative flex items-start gap-5"
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: i * 0.12 }}
+        >
           <div
             className={`relative z-10 flex shrink-0 items-center justify-center rounded-full border bg-card text-primary ${
               stage.dominant ? "size-14 border-primary/40" : "size-10 border-border"
@@ -54,7 +71,7 @@ export function PipelineFlow() {
               {stage.body}
             </p>
           </div>
-        </li>
+        </motion.li>
       ))}
     </ol>
   );
