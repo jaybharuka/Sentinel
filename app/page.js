@@ -46,9 +46,9 @@ export default function Home() {
               </span>
             </h1>
             <p className="mt-6 max-w-lg text-base text-muted-foreground sm:text-lg">
-              Sentinel AI scores every Razorpay payment for fraud risk. A fixed, auditable set of
-              rules, not the model, decides whether it's allowed, held for review, or
-              auto-refunded.
+              A fixed, auditable set of rules decides whether every Razorpay payment is allowed,
+              held for review, or auto-refunded — never the model. Sentinel AI supplies the risk
+              score and the reasoning behind it, but it never holds the authority to act on either.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-5">
               <Button size="lg" asChild>

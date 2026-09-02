@@ -17,7 +17,7 @@ const STAGES = [
   {
     icon: Sparkles,
     title: "Sentinel AI scores it",
-    body: "A risk score, a confidence level, and plain-English reasons, or a rule-based backup scorer if the model's unavailable.",
+    body: "A risk score, a confidence level, and plain-English reasons - advisory only, or a rule-based backup scorer if the model's unavailable.",
   },
   {
     icon: GitBranch,

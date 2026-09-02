@@ -369,16 +369,16 @@ export function DashboardContent() {
                       >
                         <div className="px-4 pb-4 text-sm text-muted-foreground space-y-1">
                           <p>
-                            A payment comes in → an AI model (or a backup rule-based system if the AI is
-                            unavailable) scores it for fraud risk and explains why → a separate, simple set
-                            of rules decides what happens (allow it, flag it for human review, or
-                            auto-refund it).
+                            The AI is never trusted with money. It scores every payment for fraud risk
+                            and explains why — but a separate, fixed set of rules is the only thing that
+                            decides what actually happens (allow it, flag it for human review, or
+                            auto-refund it), and the only thing that can approve moving real money.
                           </p>
                           <p>
-                            The AI can only <em>suggest</em>. A fixed set of hard-coded rules is the only
-                            thing that can actually approve moving real money, and those rules are visible
-                            on the Policy &amp; Signals tab. Everything that happens is logged in the audit
-                            trail on the Transactions tab.
+                            If the AI is unavailable, a backup rule-based system scores the payment
+                            instead — either way, the same rules decide the outcome. Those rules are
+                            visible on the Policy &amp; Signals tab, and everything that happens is
+                            logged in the audit trail on the Transactions tab.
                           </p>
                         </div>
                       </motion.div>
@@ -403,7 +403,7 @@ export function DashboardContent() {
                           {
                             label: "Fallback rate",
                             value: formatPercent(metrics.fallbackRate),
-                            info: "How often the backup rule-based scorer ran instead of the AI model.",
+                            info: "How often the backup rule-based scorer ran instead of the AI model - either way, the same policy gate decides what happens.",
                           },
                         ]}
                       />
@@ -563,7 +563,12 @@ export function DashboardContent() {
               <StaggerItem>
                 <section className="space-y-3">
                   <div>
-                    <h2 className="text-lg font-medium">External Benchmark (Kaggle Credit Card Fraud Dataset)</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-medium">External Benchmark (Kaggle Credit Card Fraud Dataset)</h2>
+                      <Badge variant="outline" className="text-muted-foreground text-[10px] font-normal uppercase tracking-wide">
+                        Secondary validation
+                      </Badge>
+                    </div>
                     <p className="text-muted-foreground text-sm">
                       Run against a real, publicly available, independently-labeled fraud dataset not
                       authored by us. Feature mapping is necessarily partial since this dataset's
@@ -579,29 +584,31 @@ export function DashboardContent() {
                     </p>
                   ) : (
                     <>
-                      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
-                        <FeaturedStat
-                          label="Recall"
-                          value={formatPercent(benchmarkMetrics.recall)}
-                          caption="Deliberately near-zero on this dataset - see the honest-abstention note below."
-                        />
-                        <StatList
-                          className="sm:max-w-sm sm:flex-1"
-                          items={[
-                            { label: "Precision", value: formatPercent(benchmarkMetrics.precision) },
-                            {
-                              label: "F1",
-                              value: benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "–",
-                            },
-                            {
-                              label: "Scored so far",
-                              value: `${benchmarkMetrics.totalScored} / ${benchmarkMetrics.datasetSize}`,
-                              info: "Rows from the sampled subset run through the pipeline.",
-                            },
-                            { label: "Fallback rate", value: formatPercent(benchmarkMetrics.fallbackRate) },
-                          ]}
-                        />
-                      </div>
+                      {/* Compact list only here, deliberately no FeaturedStat - this
+                          number shouldn't compete visually with the 93% recall
+                          headline above; see the methodology note for why 0% is
+                          the honest, expected result on this reduced signal set. */}
+                      <StatList
+                        className="max-w-md"
+                        items={[
+                          {
+                            label: "Recall",
+                            value: formatPercent(benchmarkMetrics.recall),
+                            info: "Deliberately near-zero on this reduced-signal dataset - honest abstention, not failure. See the note below.",
+                          },
+                          { label: "Precision", value: formatPercent(benchmarkMetrics.precision) },
+                          {
+                            label: "F1",
+                            value: benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "–",
+                          },
+                          {
+                            label: "Scored so far",
+                            value: `${benchmarkMetrics.totalScored} / ${benchmarkMetrics.datasetSize}`,
+                            info: "Rows from the sampled subset run through the pipeline.",
+                          },
+                          { label: "Fallback rate", value: formatPercent(benchmarkMetrics.fallbackRate) },
+                        ]}
+                      />
 
                       <Card className="border-warning/40 bg-warning/5">
                         <CardHeader>

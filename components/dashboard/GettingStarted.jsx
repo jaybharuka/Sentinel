@@ -8,7 +8,7 @@ const STEPS = [
   {
     Icon: Sparkles,
     title: "See the rules",
-    body: "Every decision is gated by fixed bounds, not the AI's judgment alone.",
+    body: "Every decision is gated by fixed bounds - the AI never has the authority to act alone.",
     href: "#policy-bounds",
     cta: "View policy bounds",
   },
@@ -22,7 +22,7 @@ const STEPS = [
   {
     Icon: ShieldAlert,
     title: "Break it on purpose",
-    body: "Simulate an AI outage and watch the rule-based fallback take over.",
+    body: "Simulate an AI outage and watch the rule-based fallback take over - the gate keeps deciding either way.",
     href: "#demo-outage",
     cta: "Try the outage demo",
   },
