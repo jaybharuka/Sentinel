@@ -2,8 +2,10 @@
 
 import { Fragment, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { RiskGauge } from "@/components/brand/RiskGauge";
@@ -31,10 +33,17 @@ function plainEnglishReason(reasons) {
 const COLUMN_INFO = {
   Risk: "The fraud risk score from 0 (no risk) to 1 (certain fraud), from the AI model or the backup rule-based system.",
   Decision: "What the policy gate decided to do about this transaction, based on the risk score and the merchant's configured bounds.",
-  Action: "What actually happened as a result of the decision. For auto-refund, whether the real Razorpay refund call succeeded.",
+  Action: "What actually happened as a result of the decision. For auto-refund, whether the real Razorpay refund call succeeded. allow_overridden means a merchant manually reversed a hold/refund decision.",
   Source: "Whether the AI model scored this transaction directly, or the backup rule-based system did (usually because the model provider's rate limit was hit).",
   Signals: "How many of the 12 deterministic risk signals (see the Risk Signals panel above) looked risky on this specific transaction.",
 };
+
+const OVERRIDE_REASONS = [
+  { value: "trusted_customer", label: "Trusted customer" },
+  { value: "false_positive", label: "False positive" },
+  { value: "customer_contacted", label: "Customer contacted us" },
+  { value: "other", label: "Other" },
+];
 
 function formatINR(amount) {
   return `₹${Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -134,6 +143,11 @@ export function TransactionsTable({
   const [overrides, setOverrides] = useState({});
   const [retryingId, setRetryingId] = useState(null);
   const [retryError, setRetryError] = useState(null);
+  const [overridingId, setOverridingId] = useState(null);
+  const [overrideReason, setOverrideReason] = useState("trusted_customer");
+  const [overrideOtherText, setOverrideOtherText] = useState("");
+  const [overrideSubmitting, setOverrideSubmitting] = useState(false);
+  const [overrideError, setOverrideError] = useState(null);
 
   if (!rows || rows.length === 0) {
     return (
@@ -159,6 +173,36 @@ export function TransactionsTable({
       setRetryError("Retry failed");
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  function openOverride(rowId) {
+    setOverridingId(rowId);
+    setOverrideReason("trusted_customer");
+    setOverrideOtherText("");
+    setOverrideError(null);
+  }
+
+  async function handleOverrideSubmit(rowId) {
+    setOverrideSubmitting(true);
+    setOverrideError(null);
+    try {
+      const res = await fetch(`/api/transactions/${rowId}/override`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: overrideReason, otherText: overrideOtherText }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOverrideError(data.error || "Override failed");
+        return;
+      }
+      setOverrides((prev) => ({ ...prev, [rowId]: data }));
+      setOverridingId(null);
+    } catch {
+      setOverrideError("Override failed");
+    } finally {
+      setOverrideSubmitting(false);
     }
   }
 
@@ -240,7 +284,7 @@ export function TransactionsTable({
                   <TableCell><DecisionBadge decision={row.policyDecision} /></TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {row.actionTaken}
-                    {row.actionTaken === "auto_refund" && (
+                    {row.policyDecision === "auto_refund" && (
                       <span className="ml-1">
                         <RefundStatus
                           refundExecuted={row.refundExecuted}
@@ -248,6 +292,12 @@ export function TransactionsTable({
                           refundError={row.refundError}
                         />
                       </span>
+                    )}
+                    {row.humanOverride && (
+                      <Badge variant="outline" className="ml-1.5 gap-1">
+                        <Undo2 className="size-3" />
+                        Overridden by merchant
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell><SourceBadge usedFallback={row.usedFallback} /></TableCell>
@@ -362,7 +412,7 @@ export function TransactionsTable({
                             </div>
                           </div>
                         )}
-                        {row.actionTaken === "auto_refund" && (
+                        {row.policyDecision === "auto_refund" && (
                           <div className="text-xs pt-1">
                             {row.refundExecuted === null ? (
                               <span className="text-muted-foreground">
@@ -376,6 +426,104 @@ export function TransactionsTable({
                               <span className="text-destructive">
                                 Refund NOT executed: {row.refundError || "unknown error"}
                               </span>
+                            )}
+                          </div>
+                        )}
+
+                        {(row.policyDecision === "hold_for_review" || row.policyDecision === "auto_refund") && (
+                          <div className="border-t border-border pt-3 mt-2">
+                            {row.humanOverride ? (
+                              <div className="flex items-start gap-2 text-xs">
+                                <Undo2 className="text-primary mt-0.5 size-3.5 shrink-0" />
+                                <p>
+                                  <span className="font-medium text-foreground">Overridden by merchant</span>{" "}
+                                  — {row.overrideReason}, {formatTimestamp(row.overriddenAt)}. Recorded on
+                                  the audit trail as{" "}
+                                  <code className="font-mono text-[11px]">allow_overridden</code>, not a
+                                  new AI or policy decision.
+                                  {row.policyDecision === "auto_refund" && row.refundExecuted && (
+                                    <span className="text-muted-foreground">
+                                      {" "}
+                                      The real Razorpay refund ({row.refundId}) was already executed and
+                                      was not reversed — that needs manual action in Razorpay's dashboard.
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            ) : overridingId === row.id ? (
+                              <div
+                                className="space-y-2 rounded-md border border-border bg-card p-3"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <p className="text-xs font-medium">Override this decision</p>
+                                <p className="text-muted-foreground text-xs">
+                                  Marks this transaction as approved despite the flag. This never calls
+                                  Razorpay.
+                                  {row.policyDecision === "auto_refund" && row.refundExecuted && (
+                                    <>
+                                      {" "}
+                                      A real refund already executed for this transaction — overriding
+                                      records your disagreement for the audit trail, it will not reverse
+                                      the refund.
+                                    </>
+                                  )}
+                                </p>
+                                <select
+                                  value={overrideReason}
+                                  onChange={(e) => setOverrideReason(e.target.value)}
+                                  className="border-input h-8 w-full rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                >
+                                  {OVERRIDE_REASONS.map((r) => (
+                                    <option key={r.value} value={r.value}>
+                                      {r.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                {overrideReason === "other" && (
+                                  <Input
+                                    value={overrideOtherText}
+                                    onChange={(e) => setOverrideOtherText(e.target.value)}
+                                    placeholder="Describe the reason"
+                                    maxLength={300}
+                                    className="h-8 text-xs"
+                                  />
+                                )}
+                                {overrideError && <p className="text-destructive text-xs">{overrideError}</p>}
+                                <div className="flex gap-2 pt-1">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={
+                                      overrideSubmitting ||
+                                      (overrideReason === "other" && !overrideOtherText.trim())
+                                    }
+                                    onClick={() => handleOverrideSubmit(row.id)}
+                                  >
+                                    {overrideSubmitting ? "Submitting…" : "Confirm override"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={overrideSubmitting}
+                                    onClick={() => setOverridingId(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openOverride(row.id);
+                                }}
+                              >
+                                Override decision
+                              </Button>
                             )}
                           </div>
                         )}

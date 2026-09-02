@@ -42,6 +42,8 @@ model Transaction {
   policyDecision String?
   actionTaken    String?
   humanOverride  Boolean  @default(false)
+  overrideReason String?
+  overriddenAt   DateTime?
   isLabeledFraud Boolean?
   source         String   @default("synthetic")
   disputedAt     DateTime?
