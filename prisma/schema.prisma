@@ -39,6 +39,8 @@ model Transaction {
   confidence     Float?
   reasons        Json?
   usedFallback   Boolean  @default(false)
+  provider       String?
+  scoringLatencyMs Int?
   policyDecision String?
   actionTaken    String?
   humanOverride  Boolean  @default(false)

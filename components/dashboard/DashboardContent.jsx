@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,13 @@ const SOURCE_TABS = [
   { value: "false", label: "AI" },
   { value: "true", label: "Fallback" },
 ];
+
+const PROVIDER_LABELS = {
+  "groq-primary": "Groq primary",
+  "groq-secondary": "Groq secondary",
+  gemini: "Gemini",
+  fallback: "Fallback (rule-based)",
+};
 
 // Tab-body entrance: a quick fade+slide on mount, and a slight reverse-slide
 // on exit - AnimatePresence's mode="wait" makes the outgoing tab finish its
@@ -146,6 +154,13 @@ export function DashboardContent() {
   const [metrics, setMetrics] = useState(null);
   const [benchmarkMetrics, setBenchmarkMetrics] = useState(null);
   const [liveMetrics, setLiveMetrics] = useState(null);
+  const [providerHealth, setProviderHealth] = useState(null);
+  const [settingsForm, setSettingsForm] = useState(null);
+  const [simInputs, setSimInputs] = useState(null);
+  const [simResult, setSimResult] = useState(null);
+  const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState(null);
+  const [applyingPolicy, setApplyingPolicy] = useState(false);
   const [pendingRefunds, setPendingRefunds] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [recentRows, setRecentRows] = useState([]);
@@ -280,6 +295,89 @@ export function DashboardContent() {
       .then(setLiveMetrics)
       .catch(() => setLiveMetrics(null));
   }, []);
+
+  useEffect(() => {
+    fetch("/api/metrics/provider-health")
+      .then((res) => res.json())
+      .then(setProviderHealth)
+      .catch(() => setProviderHealth(null));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        setSettingsForm(data);
+        // Only seed the simulator's starting values once, from the live
+        // bounds - a later settings refetch (e.g. after "Apply this
+        // policy") shouldn't clobber whatever the merchant has since typed.
+        setSimInputs((prev) =>
+          prev
+            ? prev
+            : {
+                autoRefundMaxAmount: data.autoRefundMaxAmount,
+                dailyRefundCap: data.dailyRefundCap,
+                autoRefundMinRiskScore: data.autoRefundMinRiskScore,
+                autoRefundMinConfidence: data.autoRefundMinConfidence,
+                holdForReviewMinRiskScore: data.holdForReviewMinRiskScore,
+              }
+        );
+      })
+      .catch(() => setSettingsForm(null));
+  }, []);
+
+  function updateSimInput(key, value) {
+    setSimInputs((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSimulate() {
+    setSimLoading(true);
+    setSimError(null);
+    try {
+      const res = await fetch("/api/policy-simulator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(simInputs),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSimError(data.error || "Simulation failed");
+        return;
+      }
+      setSimResult(data);
+    } catch {
+      setSimError("Simulation failed");
+    } finally {
+      setSimLoading(false);
+    }
+  }
+
+  async function handleApplySimulatedPolicy() {
+    setApplyingPolicy(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...settingsForm, ...simInputs }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Could not apply policy", description: data.error || "Try again.", variant: "error" });
+        return;
+      }
+      setSettingsForm(data);
+      refetchBounds();
+      toast({
+        title: "Policy applied",
+        description: "These bounds are now live and enforced on the next transaction processed.",
+        variant: "success",
+      });
+    } catch {
+      toast({ title: "Could not apply policy", description: "Check your connection and try again.", variant: "error" });
+    } finally {
+      setApplyingPolicy(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/transactions?pageSize=20")
@@ -706,6 +804,71 @@ export function DashboardContent() {
                   )}
                 </section>
               </StaggerItem>
+
+              {/* Risk Engine Health: provider mix + scoring latency,
+                  operational rather than accuracy-focused */}
+              <StaggerItem>
+                <section className="space-y-3">
+                  <div>
+                    <h2 className="text-lg font-medium">Risk Engine Health</h2>
+                    <p className="text-muted-foreground text-sm">
+                      Which provider actually scored each request, and how long it took. Scoped to
+                      real (razorpay_live) and synthetic held-out traffic combined - not the Kaggle
+                      benchmark (a different, reduced prompt) or demo scenarios (no real scoring call
+                      is made).
+                    </p>
+                  </div>
+                  {!providerHealth ? (
+                    <p className="text-muted-foreground text-sm">Loading…</p>
+                  ) : providerHealth.instrumented === 0 ? (
+                    <p className="text-muted-foreground text-sm italic">
+                      No instrumented data yet. Provider and latency tracking were added after the
+                      existing {providerHealth.totalInScope} synthetic/live rows were already scored,
+                      so none of them have this recorded - this panel populates as new transactions
+                      are scored from here on.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                        <FeaturedStat
+                          label="Requests scored"
+                          value={providerHealth.instrumented}
+                          caption={`Of ${providerHealth.totalInScope} rows in scope (${providerHealth.liveCount} live, ${providerHealth.syntheticCount} synthetic) - only rows scored after provider/latency tracking shipped are counted here.`}
+                        />
+                        <StatList
+                          className="sm:max-w-sm sm:flex-1"
+                          items={[
+                            ...Object.entries(providerHealth.providerCounts).map(([provider, count]) => ({
+                              label: PROVIDER_LABELS[provider] || provider,
+                              value: `${count} (${Math.round((count / providerHealth.instrumented) * 100)}%)`,
+                            })),
+                            {
+                              label: "Median latency",
+                              value:
+                                providerHealth.latency.medianMs != null
+                                  ? `${providerHealth.latency.medianMs}ms`
+                                  : "–",
+                            },
+                            {
+                              label: "p95 latency",
+                              value:
+                                providerHealth.latency.p95Ms != null
+                                  ? `${providerHealth.latency.p95Ms}ms`
+                                  : "–",
+                              info: "95% of scoring calls resolved at or below this time.",
+                            },
+                          ]}
+                        />
+                      </div>
+                      <p className="text-muted-foreground text-xs italic">
+                        {providerHealth.liveCount < 20
+                          ? `Only ${providerHealth.liveCount} real (razorpay_live) transaction${providerHealth.liveCount === 1 ? "" : "s"} in this data - the mix and latency above are dominated by synthetic traffic, not yet a reliable picture of real-world provider behavior.`
+                          : `${providerHealth.liveCount} real (razorpay_live) transactions contribute to this data, alongside ${providerHealth.syntheticCount} synthetic.`}
+                      </p>
+                    </>
+                  )}
+                </section>
+              </StaggerItem>
             </StaggerContainer>
           )}
 
@@ -887,6 +1050,171 @@ export function DashboardContent() {
                       action, but only this policy gate can approve real money movement.
                     </p>
                   </>
+                )}
+              </StaggerItem>
+
+              {/* Policy Simulator: pure re-computation against already-stored
+                  synthetic scores, no AI calls, instant. */}
+              <StaggerItem id="policy-simulator" className="scroll-mt-6 space-y-3">
+                <div>
+                  <h2 className="text-lg font-medium">Policy Simulator</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Simulated against your 400-row synthetic held-out test set's already-stored AI
+                    scores, not a live re-evaluation of new transactions. Changing a threshold here
+                    re-runs the policy gate against those past scores instantly; it never calls the
+                    AI again and doesn't predict how future transactions will actually score.
+                  </p>
+                </div>
+                {!simInputs ? (
+                  <p className="text-muted-foreground text-sm">Loading…</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Max single auto-refund (₹)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={simInputs.autoRefundMaxAmount}
+                          onChange={(e) => updateSimInput("autoRefundMaxAmount", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Daily refund budget (₹)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={simInputs.dailyRefundCap}
+                          onChange={(e) => updateSimInput("dailyRefundCap", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Auto-refund min risk score (0-1)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={simInputs.autoRefundMinRiskScore}
+                          onChange={(e) => updateSimInput("autoRefundMinRiskScore", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Auto-refund min confidence (0-1)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={simInputs.autoRefundMinConfidence}
+                          onChange={(e) => updateSimInput("autoRefundMinConfidence", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Hold-for-review risk threshold (0-1)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={simInputs.holdForReviewMinRiskScore}
+                          onChange={(e) => updateSimInput("holdForReviewMinRiskScore", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button type="button" onClick={handleSimulate} disabled={simLoading}>
+                        {simLoading ? "Simulating…" : "Simulate"}
+                      </Button>
+                      {simError && <p className="text-destructive text-sm">{simError}</p>}
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                      {simResult && (
+                        <motion.div
+                          key="sim-result"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                          className="space-y-3"
+                        >
+                          <div className="overflow-x-auto rounded-lg border border-border">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                                  <th className="px-3 py-2 font-medium">Metric</th>
+                                  <th className="px-3 py-2 font-medium">Current (live bounds)</th>
+                                  <th className="px-3 py-2 font-medium">Simulated (candidate bounds)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">Precision</td>
+                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.current.precision)}</td>
+                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.simulated.precision)}</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">Recall</td>
+                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.current.recall)}</td>
+                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.simulated.recall)}</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">F1</td>
+                                  <td className="px-3 py-2 font-mono">
+                                    {simResult.current.f1 != null ? simResult.current.f1.toFixed(3) : "–"}
+                                  </td>
+                                  <td className="px-3 py-2 font-mono">
+                                    {simResult.simulated.f1 != null ? simResult.simulated.f1.toFixed(3) : "–"}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">False-positive cost</td>
+                                  <td className="px-3 py-2 font-mono">{formatINR(simResult.current.falsePositiveCost)}</td>
+                                  <td className="px-3 py-2 font-mono">{formatINR(simResult.simulated.falsePositiveCost)}</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">Allow</td>
+                                  <td className="px-3 py-2 font-mono">{simResult.current.decisionCounts.allow}</td>
+                                  <td className="px-3 py-2 font-mono">{simResult.simulated.decisionCounts.allow}</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">Hold for review</td>
+                                  <td className="px-3 py-2 font-mono">
+                                    {simResult.current.decisionCounts.hold_for_review}
+                                  </td>
+                                  <td className="px-3 py-2 font-mono">
+                                    {simResult.simulated.decisionCounts.hold_for_review}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2 text-muted-foreground">Auto-refund</td>
+                                  <td className="px-3 py-2 font-mono">{simResult.current.decisionCounts.auto_refund}</td>
+                                  <td className="px-3 py-2 font-mono">{simResult.simulated.decisionCounts.auto_refund}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <p className="text-muted-foreground text-xs">
+                            Simulated against your {simResult.totalRows}-row synthetic test set's
+                            already-stored AI scores.
+                            {simResult.unparseable > 0 &&
+                              ` ${simResult.unparseable} row(s) could not be re-simulated and were excluded.`}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleApplySimulatedPolicy}
+                            disabled={applyingPolicy}
+                          >
+                            {applyingPolicy ? "Applying…" : "Apply this policy"}
+                          </Button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 )}
               </StaggerItem>
 
