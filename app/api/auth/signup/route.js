@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { setSessionCookie } from "@/lib/session";
+import { sendVerificationEmail } from "@/lib/authEmails";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -57,6 +58,13 @@ export async function POST(request) {
   });
 
   await setSessionCookie(merchant.id);
+
+  // Best-effort: a failed verification email must never block signup
+  // itself - the merchant can always resend from the dashboard banner
+  // (app/api/auth/resend-verification/route.js). Same non-blocking
+  // discipline as lib/alerting.js's sendAlert().
+  const origin = request.headers.get("origin") || new URL(request.url).origin;
+  await sendVerificationEmail(merchant, origin);
 
   return Response.json({ id: merchant.id, name: merchant.name, email: merchant.email });
 }

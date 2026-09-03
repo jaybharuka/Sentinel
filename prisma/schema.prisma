@@ -18,6 +18,12 @@ model Merchant {
   password  String
   createdAt DateTime @default(now())
 
+  emailVerified            Boolean   @default(false)
+  verificationToken        String?   @unique
+  verificationTokenExpiry  DateTime?
+  resetToken               String?   @unique
+  resetTokenExpiry         DateTime?
+
   settings     MerchantSettings?
   transactions Transaction[]
   alerts       Alert[]

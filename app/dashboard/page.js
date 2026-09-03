@@ -20,7 +20,7 @@ export default async function DashboardPage() {
               Next requires a Suspense boundary around any client component
               using it. */}
           <Suspense fallback={<p className="text-muted-foreground text-sm">Loading dashboard…</p>}>
-            <DashboardContent />
+            <DashboardContent emailVerified={merchant.emailVerified} />
           </Suspense>
         </ToastProvider>
       </div>

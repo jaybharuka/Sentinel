@@ -125,11 +125,19 @@ function formatDateTime(value) {
   });
 }
 
-export function DashboardContent() {
+export function DashboardContent({ emailVerified }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  // Dismissing hides the banner for this page view only - plain component
+  // state, not localStorage. Navigating away and back (or reloading)
+  // brings it back for as long as the account is actually unverified, per
+  // the "dismissible but reappearing" requirement - deliberately different
+  // from GettingStarted/"How this works", which are meant to go away
+  // permanently once seen.
+  const [verificationBannerDismissed, setVerificationBannerDismissed] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const activeTab = DASHBOARD_TABS.some((t) => t.value === searchParams.get("tab"))
     ? searchParams.get("tab")
     : DEFAULT_TAB;
@@ -240,6 +248,23 @@ export function DashboardContent() {
       description: "Won't show this again on this browser.",
       variant: "info",
     });
+  }
+
+  async function handleResendVerification() {
+    setResendingVerification(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Could not resend", description: data.error || "Try again.", variant: "error" });
+        return;
+      }
+      toast({ title: "Verification email sent", description: "Check your inbox.", variant: "success" });
+    } catch {
+      toast({ title: "Could not resend", description: "Check your connection and try again.", variant: "error" });
+    } finally {
+      setResendingVerification(false);
+    }
   }
 
   function refetchBounds() {
@@ -407,6 +432,37 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {emailVerified === false && !verificationBannerDismissed && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border-2 border-warning bg-warning/5 p-4">
+          <div>
+            <p className="text-sm font-medium">Verify your email address</p>
+            <p className="text-muted-foreground text-xs">
+              We sent a link when you signed up. Verifying isn't required to use the product, but
+              confirms we can actually reach you.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResendVerification}
+              disabled={resendingVerification}
+            >
+              {resendingVerification ? "Sending…" : "Resend email"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setVerificationBannerDismissed(true)}
+              aria-label="Dismiss"
+              className="text-muted-foreground hover:text-foreground shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div>
         <p className="font-mono text-xs uppercase tracking-widest text-primary">Dashboard</p>
         <h1 className="mt-1 text-2xl font-semibold">Sentinel</h1>

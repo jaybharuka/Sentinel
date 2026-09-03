@@ -59,7 +59,12 @@ export function LoginForm() {
             <Input id="email" type="email" value={form.email} onChange={(e) => updateField("email", e.target.value)} required />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="password">Password</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium" htmlFor="password">Password</label>
+              <a href="/forgot-password" className="text-muted-foreground hover:text-foreground text-xs underline">
+                Forgot password?
+              </a>
+            </div>
             <Input id="password" type="password" value={form.password} onChange={(e) => updateField("password", e.target.value)} required />
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
