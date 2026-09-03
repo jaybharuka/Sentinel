@@ -1,7 +1,6 @@
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { setSessionCookie } from "@/lib/session";
-import { generateApiKey } from "@/lib/merchantSettings";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -47,10 +46,12 @@ export async function POST(request) {
       name,
       email,
       password: hashedPassword,
+      // No API key created here - a key can only be generated from an
+      // explicit action on the settings page, since that's the only
+      // moment the UI has to show the full value (see
+      // lib/merchantSettings.js's regenerateApiKey()).
       settings: {
-        create: {
-          apiKey: generateApiKey(),
-        },
+        create: {},
       },
     },
   });

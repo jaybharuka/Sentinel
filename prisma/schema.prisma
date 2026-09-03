@@ -104,7 +104,17 @@ model MerchantSettings {
   autoRefundMinConfidence   Float    @default(0.8)
   holdForReviewMinRiskScore Float    @default(0.6)
   alertEmail                String?
-  apiKey                    String?  @unique
+  // API keys are already high-entropy random strings, not user-chosen
+  // passwords - a fast SHA-256 hash is appropriate here (bcrypt's
+  // deliberately-slow cost isn't needed and would add real latency to
+  // every external API request). apiKeyPrefix is the first 16 characters
+  // of the real key ("sk_live_" + 8 hex chars) for display and for
+  // narrowing the auth lookup before the actual constant-time hash
+  // comparison - see app/api/v1/transactions/route.js. The full key is
+  // never stored anywhere; it exists only in the one response that
+  // generates it (see lib/merchantSettings.js's regenerateApiKey()).
+  apiKeyHash                String?  @unique
+  apiKeyPrefix              String?
 
   updatedAt                 DateTime @updatedAt
 }

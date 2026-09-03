@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getMerchantSettings } from "@/lib/merchantSettings";
+import { getMerchantSettings, toPublicSettings } from "@/lib/merchantSettings";
 import { getCurrentMerchant } from "@/lib/currentMerchant";
 import { validatePolicyBounds } from "@/lib/validatePolicyBounds";
 
@@ -22,7 +22,7 @@ export async function GET() {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
   const settings = await getMerchantSettings(merchant.id);
-  return Response.json(settings);
+  return Response.json(toPublicSettings(settings));
 }
 
 export async function POST(request) {
@@ -49,5 +49,5 @@ export async function POST(request) {
     create: { merchantId: merchant.id, ...values },
   });
 
-  return Response.json(updated);
+  return Response.json(toPublicSettings(updated));
 }

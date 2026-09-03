@@ -46,6 +46,11 @@ export function SettingsContent() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  // The full key only ever lives in this component's state, for the one
+  // render right after it's generated - it's never part of `form` (which
+  // only ever holds apiKeyPrefix) and is never persisted anywhere. Gone on
+  // refresh or navigation, by design.
+  const [justGeneratedKey, setJustGeneratedKey] = useState(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -59,7 +64,11 @@ export function SettingsContent() {
   }
 
   async function handleRegenerateKey() {
-    if (!window.confirm("Regenerate API key? The old key will stop working immediately.")) {
+    const hasExistingKey = Boolean(form.apiKeyPrefix);
+    const confirmMessage = hasExistingKey
+      ? "Regenerate API key? The old key will stop working immediately."
+      : "Generate a new API key?";
+    if (!window.confirm(confirmMessage)) {
       return;
     }
     setRegenerating(true);
@@ -67,10 +76,11 @@ export function SettingsContent() {
       const res = await fetch("/api/settings/regenerate-key", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setForm(data);
+        setForm((prev) => ({ ...prev, apiKeyPrefix: data.apiKeyPrefix }));
+        setJustGeneratedKey(data.apiKey);
         toast({
-          title: "API key regenerated",
-          description: "Update any integrations using the old key.",
+          title: hasExistingKey ? "API key regenerated" : "API key generated",
+          description: "Copy it now - you won't see the full key again.",
           variant: "success",
         });
       } else {
@@ -78,6 +88,15 @@ export function SettingsContent() {
       }
     } finally {
       setRegenerating(false);
+    }
+  }
+
+  async function handleCopyKey() {
+    try {
+      await navigator.clipboard.writeText(justGeneratedKey);
+      toast({ title: "Copied to clipboard", variant: "info" });
+    } catch {
+      toast({ title: "Could not copy", description: "Select and copy the key manually.", variant: "error" });
     }
   }
 
@@ -173,9 +192,27 @@ export function SettingsContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {justGeneratedKey && (
+              <div className="space-y-2 rounded-md border-2 border-warning bg-warning/5 p-3">
+                <p className="text-warning text-xs font-medium">
+                  Copy this now - you won't see the full key again after you leave this page.
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs break-all">
+                    {justGeneratedKey}
+                  </code>
+                  <Button type="button" variant="outline" size="sm" onClick={handleCopyKey}>
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
-              <code className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs break-all">
-                {form.apiKey}
+              <code className="text-muted-foreground flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs break-all">
+                {form.apiKeyPrefix
+                  ? `${form.apiKeyPrefix}${"•".repeat(32)}`
+                  : "No API key generated yet"}
               </code>
               <Button
                 type="button"
@@ -184,7 +221,7 @@ export function SettingsContent() {
                 onClick={handleRegenerateKey}
                 disabled={regenerating}
               >
-                {regenerating ? "Regenerating…" : "Regenerate"}
+                {regenerating ? "Generating…" : form.apiKeyPrefix ? "Regenerate" : "Generate API key"}
               </Button>
             </div>
 
@@ -193,7 +230,7 @@ export function SettingsContent() {
                 Authenticate with an Authorization: Bearer header. Try it:
               </p>
               <pre className="rounded-md border bg-muted px-3 py-2 text-xs overflow-x-auto">
-{`curl -H "Authorization: Bearer ${form.apiKey}" \\
+{`curl -H "Authorization: Bearer ${justGeneratedKey || "<your-api-key>"}" \\
   "${typeof window !== "undefined" ? window.location.origin : ""}/api/v1/transactions"`}
               </pre>
             </div>
