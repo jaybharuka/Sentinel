@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      # Build-time only - no real secrets needed to compile. Every API
+      # route is dynamic (no build-time DB/network calls), so these just
+      # satisfy `prisma generate`'s schema validation and the SDK clients'
+      # required-env-var checks (see lib/refundExecutor.js, lib/merchantLock.js,
+      # lib/resendClient.js) that would otherwise throw at import time.
+      - run: npm run build
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/dummy?sslmode=require"
+          DIRECT_URL: "postgresql://user:password@localhost:5432/dummy?sslmode=require"
+          GROQ_API_KEY: "dummy"
+          RAZORPAY_KEY_ID: "dummy"
+          RAZORPAY_KEY_SECRET: "dummy"
+          RAZORPAY_WEBHOOK_SECRET: "dummy"
+          SESSION_SECRET: "dummy0123456789dummy0123456789"
+          RESEND_API_KEY: "dummy"
+          UPSTASH_REDIS_REST_URL: "https://dummy.upstash.io"
+          UPSTASH_REDIS_REST_TOKEN: "dummy"
