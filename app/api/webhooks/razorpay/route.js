@@ -141,6 +141,7 @@ export async function POST(request) {
   });
 
   const rawBody = await request.text();
+  console.log("TEMP DEBUG - full webhook body + headers:", rawBody, JSON.stringify([...request.headers.entries()]));
   const signature = request.headers.get("x-razorpay-signature");
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
