@@ -20,7 +20,7 @@ export async function POST(request) {
     return Response.json({ error: "Invalid email or password" }, { status: 401 });
   }
 
-  await setSessionCookie(merchant.id);
+  await setSessionCookie(merchant.id, request.headers.get("user-agent"));
 
   return Response.json({ id: merchant.id, name: merchant.name, email: merchant.email });
 }

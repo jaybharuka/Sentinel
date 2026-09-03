@@ -41,6 +41,15 @@ const FIELDS = [
   },
 ];
 
+function formatDateTime(value) {
+  return new Date(value).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function SettingsContent() {
   const { toast } = useToast();
   const [form, setForm] = useState(null);
@@ -51,6 +60,9 @@ export function SettingsContent() {
   // only ever holds apiKeyPrefix) and is never persisted anywhere. Gone on
   // refresh or navigation, by design.
   const [justGeneratedKey, setJustGeneratedKey] = useState(null);
+  const [sessions, setSessions] = useState(null);
+  const [revokingId, setRevokingId] = useState(null);
+  const [loggingOutOthers, setLoggingOutOthers] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -58,6 +70,69 @@ export function SettingsContent() {
       .then(setForm)
       .catch(() => setForm(null));
   }, []);
+
+  function refetchSessions() {
+    fetch("/api/sessions")
+      .then((res) => res.json())
+      .then((data) => setSessions(data.sessions || []))
+      .catch(() => setSessions([]));
+  }
+
+  useEffect(() => {
+    refetchSessions();
+  }, []);
+
+  async function handleRevokeSession(session) {
+    const confirmMessage = session.isCurrent
+      ? "Log out this device? You'll need to log in again."
+      : "Log out this session? It will be signed out immediately.";
+    if (!window.confirm(confirmMessage)) return;
+
+    setRevokingId(session.id);
+    try {
+      const res = await fetch(`/api/sessions/${session.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: "Could not log out session", description: data.error || "Try again.", variant: "error" });
+        return;
+      }
+      if (session.isCurrent) {
+        window.location.href = "/login";
+        return;
+      }
+      toast({ title: "Session logged out", variant: "success" });
+      refetchSessions();
+    } catch {
+      toast({ title: "Could not log out session", description: "Try again.", variant: "error" });
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  async function handleLogoutOthers() {
+    if (!window.confirm("Log out of all other devices? Only this session will remain signed in.")) {
+      return;
+    }
+    setLoggingOutOthers(true);
+    try {
+      const res = await fetch("/api/sessions/logout-others", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Could not log out other sessions", description: data.error || "Try again.", variant: "error" });
+        return;
+      }
+      toast({
+        title: "Logged out of other devices",
+        description: `${data.revokedCount} session${data.revokedCount === 1 ? "" : "s"} signed out.`,
+        variant: "success",
+      });
+      refetchSessions();
+    } catch {
+      toast({ title: "Could not log out other sessions", description: "Try again.", variant: "error" });
+    } finally {
+      setLoggingOutOthers(false);
+    }
+  }
 
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -237,6 +312,65 @@ export function SettingsContent() {
           </CardContent>
         </Card></StaggerItem>
       )}
+
+      <StaggerItem>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-xl">Active sessions</CardTitle>
+            <CardDescription>
+              Every device currently signed in to your account. Logging out here actually ends
+              that session server-side - it stops working immediately, not just on that device.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!sessions ? (
+              <p className="text-muted-foreground text-sm">Loading…</p>
+            ) : sessions.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No active sessions.</p>
+            ) : (
+              <div className="rounded-lg border divide-y">
+                {sessions.map((session) => (
+                  <div key={session.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {session.device}
+                        {session.isCurrent && (
+                          <span className="text-primary ml-2 text-xs font-normal">This device</span>
+                        )}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Signed in {formatDateTime(session.createdAt)} · last used{" "}
+                        {formatDateTime(session.lastUsedAt)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => handleRevokeSession(session)}
+                      disabled={revokingId === session.id}
+                    >
+                      {revokingId === session.id ? "Logging out…" : "Log out"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {sessions && sessions.length > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleLogoutOthers}
+                disabled={loggingOutOthers}
+              >
+                {loggingOutOthers ? "Logging out…" : "Log out of all other devices"}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </StaggerItem>
     </StaggerContainer>
   );
 }

@@ -27,6 +27,27 @@ model Merchant {
   settings     MerchantSettings?
   transactions Transaction[]
   alerts       Alert[]
+  sessions     Session[]
+}
+
+// A real server-side session record, not just a signed JWT - the JWT
+// (lib/session.js) carries this row's id alongside merchantId, and every
+// Node-side auth check (getCurrentMerchant(), ultimately) confirms the row
+// still exists and hasn't expired before trusting the token. That's what
+// makes "log out this device" or "revoke a session" actually work: deleting
+// this row makes a copy of that JWT stop authenticating immediately,
+// everywhere, not just on the device that logged out. middleware.js still
+// only checks the JWT's signature/expiry at the edge (Prisma can't run
+// there) - same architectural split it already had for "does this merchant
+// row still exist," not a new gap.
+model Session {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  userAgent  String?
+  expiresAt  DateTime
 }
 
 model Transaction {

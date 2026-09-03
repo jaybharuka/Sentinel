@@ -57,7 +57,7 @@ export async function POST(request) {
     },
   });
 
-  await setSessionCookie(merchant.id);
+  await setSessionCookie(merchant.id, request.headers.get("user-agent"));
 
   // Best-effort: a failed verification email must never block signup
   // itself - the merchant can always resend from the dashboard banner
