@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ingestTransaction } from "@/lib/ingestTransaction";
 import { DEFAULT_MERCHANT_ID } from "@/lib/merchantSettings";
@@ -250,14 +251,28 @@ export async function POST(request) {
       await markFailed(razorpayEventId, eventType, new Error("Missing payment entity"));
       return Response.json({ error: "Missing payment entity" }, { status: 400 });
     }
-    // Fire-and-forget: ack Razorpay now, run the full scoring pipeline after.
-    mapPaymentEvent(payment)
-      .then(async (event) => {
+    // Ack Razorpay now, run the full scoring pipeline after - via
+    // next/server's after(), not a bare unawaited promise chain. Confirmed
+    // live during this feature's own testing that a bare fire-and-forget
+    // chain is genuinely unsafe on Vercel: a real webhook's Transaction row
+    // was created successfully, but the trailing markProcessed() call
+    // chained after it never completed - the function instance was
+    // reclaimed once the HTTP response went out, before that last async
+    // step finished. after() tells the platform to keep this invocation
+    // alive until the callback settles, without blocking the response
+    // itself - this was a real, latent risk for the whole pipeline
+    // (including ingestTransaction() itself), not just the new
+    // markProcessed() call.
+    after(async () => {
+      try {
+        const event = await mapPaymentEvent(payment);
         await recordMerchantId(razorpayEventId, event.merchantId);
-        return ingestTransaction(event);
-      })
-      .then(() => markProcessed(razorpayEventId))
-      .catch((err) => markFailed(razorpayEventId, eventType, err));
+        await ingestTransaction(event);
+        await markProcessed(razorpayEventId);
+      } catch (err) {
+        await markFailed(razorpayEventId, eventType, err);
+      }
+    });
     return Response.json({ received: true });
   }
 
