@@ -114,7 +114,7 @@ async function markDisputed(paymentId) {
   const txn = await prisma.transaction.findUnique({ where: { txnId: paymentId } });
   if (!txn) {
     console.warn(`Dispute received for unknown payment ${paymentId} - no matching transaction`);
-    return;
+    return null;
   }
   // A real dispute is genuine fraud ground-truth - retroactively labels the
   // original transaction the same way synthetic seed data is pre-labeled,
@@ -126,34 +126,66 @@ async function markDisputed(paymentId) {
   // explicit rather than relying on txnId formats never colliding.
   if (txn.source !== "razorpay_live") {
     console.warn(`Dispute received for non-live transaction ${paymentId} (source: ${txn.source}) - ignoring`);
-    return;
+    return txn.merchantId;
   }
   await prisma.transaction.update({
     where: { txnId: paymentId },
     data: { disputedAt: new Date(), isLabeledFraud: true },
   });
+  return txn.merchantId;
+}
+
+// Real captured production payloads (both a payment.captured and this
+// dispute-adjacent flow) confirmed the JSON body's only top-level keys are
+// entity/account_id/event/contains/payload/created_at - no dedicated event
+// id field, in either the body or (per the same capture) a distinguishing
+// header value beyond what's checked below. Prefer X-Razorpay-Event-Id if
+// a future Razorpay account/plan does send one; otherwise fall back to a
+// deterministic hash of stable payload content, so redeliveries of the
+// same logical event still collide on the same key even without one.
+function extractEntityId(eventType, body) {
+  if (eventType === "payment.captured" || eventType === "payment.failed") {
+    return body.payload?.payment?.entity?.id || null;
+  }
+  if (eventType === "payment.dispute.created") {
+    return body.payload?.dispute?.entity?.id || null;
+  }
+  return null;
+}
+
+function computeEventId(request, body, eventType) {
+  const header = request.headers.get("x-razorpay-event-id");
+  if (header) return header;
+  const entityId = extractEntityId(eventType, body);
+  const raw = `${eventType}:${entityId}:${body.created_at}`;
+  return "sha256:" + crypto.createHash("sha256").update(raw).digest("hex");
+}
+
+// markFailed uses updateMany with a status guard rather than update, so a
+// failure that resolves *after* a concurrent successful attempt already
+// marked this event "processed" can never downgrade it back to "failed" -
+// see the concurrent-retry note in POST() below for when that race is
+// actually possible.
+async function markProcessed(razorpayEventId) {
+  await prisma.webhookEvent
+    .update({ where: { razorpayEventId }, data: { status: "processed", processedAt: new Date() } })
+    .catch((err) => console.error(`Failed to mark webhook event ${razorpayEventId} processed:`, err));
+}
+
+async function markFailed(razorpayEventId, eventType, err) {
+  console.error(`Webhook processing failed for ${razorpayEventId} (${eventType}):`, err);
+  await prisma.webhookEvent
+    .updateMany({ where: { razorpayEventId, status: { not: "processed" } }, data: { status: "failed" } })
+    .catch(() => {});
+}
+
+async function recordMerchantId(razorpayEventId, merchantId) {
+  if (!merchantId) return;
+  await prisma.webhookEvent.update({ where: { razorpayEventId }, data: { merchantId } }).catch(() => {});
 }
 
 export async function POST(request) {
-  console.log("Razorpay webhook: request received", {
-    url: request.url,
-    hasSignatureHeader: request.headers.has("x-razorpay-signature"),
-  });
-
   const rawBody = await request.text();
-  try {
-    const parsedForDebug = JSON.parse(rawBody);
-    console.log(
-      "TEMP DEBUG combined:",
-      JSON.stringify({
-        topLevelKeys: Object.keys(parsedForDebug),
-        id: parsedForDebug.id ?? null,
-        event_id: parsedForDebug.event_id ?? null,
-        account_id: parsedForDebug.account_id ?? null,
-        eventIdHeader: request.headers.get("x-razorpay-event-id"),
-      })
-    );
-  } catch {}
   const signature = request.headers.get("x-razorpay-signature");
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -173,16 +205,59 @@ export async function POST(request) {
   }
 
   const eventType = body.event;
+  const razorpayEventId = computeEventId(request, body, eventType);
+
+  // Idempotency check. Real, structured (WebhookEvent table), not the
+  // accidental safety net Transaction.txnId's unique constraint used to be
+  // - that constraint only ever stopped a duplicate delivery from creating
+  // a second row; it did nothing to short-circuit re-running scoring/AI
+  // calls before hitting it, and gave no visibility into how often
+  // Razorpay actually redelivers.
+  const existing = await prisma.webhookEvent.findUnique({ where: { razorpayEventId } });
+
+  if (existing?.status === "processed") {
+    console.log(`Duplicate webhook delivery for ${razorpayEventId} (${eventType}) - already processed, skipping`);
+    return Response.json({ received: true, duplicate: true });
+  }
+
+  // status "received" (a previous attempt started but never finished - e.g.
+  // the function instance died mid-flight) or "failed": safe to reprocess.
+  // Reasoning through the double-refund question explicitly, since this is
+  // exactly the kind of retry that could be dangerous if handled naively:
+  // if the earlier attempt actually got far enough to create the
+  // Transaction row before dying, ingestTransaction()'s create() call
+  // (which happens BEFORE executeRefund() - see lib/ingestTransaction.js)
+  // hits Transaction.txnId's unique constraint on this retry and throws,
+  // caught below by markFailed(), never reaching a second refund call. If
+  // the earlier attempt hadn't reached that far yet, no row exists and this
+  // retry is just a normal first attempt. And if the earlier attempt is
+  // not actually dead but just slow, and this "retry" runs concurrently
+  // with it, the per-merchant Redis lock (lib/merchantLock.js) plus that
+  // same txnId uniqueness still prevent two successful creates/refunds for
+  // the same payment - only one of the two ever wins the create() call.
+  if (existing) {
+    console.log(
+      `Retrying previously incomplete webhook delivery for ${razorpayEventId} (${eventType}, was "${existing.status}")`
+    );
+    await prisma.webhookEvent.update({ where: { razorpayEventId }, data: { status: "received" } });
+  } else {
+    await prisma.webhookEvent.create({ data: { razorpayEventId, eventType, status: "received" } });
+  }
 
   if (eventType === "payment.captured" || eventType === "payment.failed") {
     const payment = body.payload?.payment?.entity;
     if (!payment) {
+      await markFailed(razorpayEventId, eventType, new Error("Missing payment entity"));
       return Response.json({ error: "Missing payment entity" }, { status: 400 });
     }
     // Fire-and-forget: ack Razorpay now, run the full scoring pipeline after.
     mapPaymentEvent(payment)
-      .then((event) => ingestTransaction(event))
-      .catch((err) => console.error(`Failed to process ${eventType} for ${payment.id}:`, err));
+      .then(async (event) => {
+        await recordMerchantId(razorpayEventId, event.merchantId);
+        return ingestTransaction(event);
+      })
+      .then(() => markProcessed(razorpayEventId))
+      .catch((err) => markFailed(razorpayEventId, eventType, err));
     return Response.json({ received: true });
   }
 
@@ -190,11 +265,20 @@ export async function POST(request) {
     const paymentId = body.payload?.dispute?.entity?.payment_id;
     console.log(`Dispute created for payment ${paymentId}`);
     if (paymentId) {
-      await markDisputed(paymentId);
+      try {
+        const merchantId = await markDisputed(paymentId);
+        await recordMerchantId(razorpayEventId, merchantId);
+        await markProcessed(razorpayEventId);
+      } catch (err) {
+        await markFailed(razorpayEventId, eventType, err);
+      }
+    } else {
+      await markProcessed(razorpayEventId);
     }
     return Response.json({ received: true });
   }
 
   console.log(`Ignoring unhandled Razorpay event: ${eventType}`);
+  await markProcessed(razorpayEventId);
   return Response.json({ received: true });
 }

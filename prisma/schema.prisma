@@ -73,6 +73,27 @@ model Alert {
   createdAt     DateTime @default(now())
 }
 
+// Webhook idempotency, replacing reliance on Transaction.txnId's unique
+// constraint as an accidental (and incomplete) safety net - that constraint
+// only ever prevented a duplicate delivery from creating a second row; it
+// did nothing to short-circuit re-running scoring/refund logic before
+// hitting it, and gave no visibility into how often Razorpay actually
+// redelivers. razorpayEventId is Razorpay's own X-Razorpay-Event-Id header
+// when present, or - since real captured payloads confirmed the JSON body
+// itself carries no dedicated event id field, only entity/account_id/
+// event/contains/payload/created_at - a deterministic hash of stable
+// payload content as a fallback, so redeliveries of the same logical event
+// still collide on the same key even without that header.
+model WebhookEvent {
+  id              Int       @id @default(autoincrement())
+  razorpayEventId String    @unique
+  merchantId      String?
+  eventType       String
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+  status          String    @default("received")
+}
+
 model MerchantSettings {
   id                        Int      @id @default(autoincrement())
   merchantId                String   @unique
