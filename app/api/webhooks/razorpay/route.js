@@ -141,7 +141,12 @@ export async function POST(request) {
   });
 
   const rawBody = await request.text();
-  console.log("TEMP DEBUG - full webhook body + headers:", rawBody, JSON.stringify([...request.headers.entries()]));
+  try {
+    const parsedForDebug = JSON.parse(rawBody);
+    console.log("TEMP DEBUG top-level keys:", Object.keys(parsedForDebug));
+    console.log("TEMP DEBUG id/event_id/account_id:", parsedForDebug.id, parsedForDebug.event_id, parsedForDebug.account_id);
+  } catch {}
+  console.log("TEMP DEBUG x-razorpay-event-id header:", request.headers.get("x-razorpay-event-id"));
   const signature = request.headers.get("x-razorpay-signature");
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
