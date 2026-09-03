@@ -143,10 +143,17 @@ export async function POST(request) {
   const rawBody = await request.text();
   try {
     const parsedForDebug = JSON.parse(rawBody);
-    console.log("TEMP DEBUG top-level keys:", Object.keys(parsedForDebug));
-    console.log("TEMP DEBUG id/event_id/account_id:", parsedForDebug.id, parsedForDebug.event_id, parsedForDebug.account_id);
+    console.log(
+      "TEMP DEBUG combined:",
+      JSON.stringify({
+        topLevelKeys: Object.keys(parsedForDebug),
+        id: parsedForDebug.id ?? null,
+        event_id: parsedForDebug.event_id ?? null,
+        account_id: parsedForDebug.account_id ?? null,
+        eventIdHeader: request.headers.get("x-razorpay-event-id"),
+      })
+    );
   } catch {}
-  console.log("TEMP DEBUG x-razorpay-event-id header:", request.headers.get("x-razorpay-event-id"));
   const signature = request.headers.get("x-razorpay-signature");
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
