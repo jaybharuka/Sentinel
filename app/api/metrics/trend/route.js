@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentMerchant } from "@/lib/currentMerchant";
 
-const DAYS = 30;
+const DEFAULT_DAYS = 30;
+const ALLOWED_DAYS = [7, 30, 90];
 const BUCKET_COUNT = 10;
 
 function dayKey(date) {
@@ -10,35 +11,50 @@ function dayKey(date) {
   return d.toISOString().slice(0, 10);
 }
 
-// Read-only aggregation for the Overview trend chart and the Policy &
-// Signals risk-distribution histogram - same shape as the app's other
-// /api/metrics/* endpoints (session-gated, merchant-scoped, computed from
-// already-stored Transaction rows). Doesn't touch scoring, the policy
-// gate, or any decision path - purely reads what ingestTransaction.js
-// already wrote.
-export async function GET() {
+// Read-only aggregation for the Overview trend chart, the Policy & Signals
+// risk-distribution histogram, and the Insights tab's decision-mix and
+// fallback-rate trends - same shape as the app's other /api/metrics/*
+// endpoints (session-gated, merchant-scoped, computed from already-stored
+// Transaction rows). Doesn't touch scoring, the policy gate, or any
+// decision path - purely reads what ingestTransaction.js already wrote.
+//
+// days defaults to 30 (Overview's fixed window, unchanged for existing
+// callers) but accepts 7/30/90 so the Insights tab's time-range selector
+// can drive the same endpoint instead of duplicating this aggregation.
+export async function GET(request) {
   const merchant = await getCurrentMerchant();
   if (!merchant) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const requestedDays = parseInt(searchParams.get("days") || "", 10);
+  const days = ALLOWED_DAYS.includes(requestedDays) ? requestedDays : DEFAULT_DAYS;
+
   const since = new Date();
-  since.setDate(since.getDate() - (DAYS - 1));
+  since.setDate(since.getDate() - (days - 1));
   since.setHours(0, 0, 0, 0);
 
   const rows = await prisma.transaction.findMany({
     where: { merchantId: merchant.id, timestamp: { gte: since } },
-    select: { timestamp: true, policyDecision: true, riskScore: true },
+    select: { timestamp: true, policyDecision: true, riskScore: true, usedFallback: true },
   });
 
   // Pre-seed every day in the window so the chart shows real zero-volume
   // days rather than skipping them (a gap that would otherwise read as
   // missing data, not "nothing happened that day").
   const byDay = new Map();
-  for (let i = 0; i < DAYS; i++) {
+  for (let i = 0; i < days; i++) {
     const d = new Date(since);
     d.setDate(d.getDate() + i);
-    byDay.set(dayKey(d), { date: dayKey(d), allow: 0, hold_for_review: 0, auto_refund: 0 });
+    byDay.set(dayKey(d), {
+      date: dayKey(d),
+      allow: 0,
+      hold_for_review: 0,
+      auto_refund: 0,
+      total: 0,
+      fallbackCount: 0,
+    });
   }
 
   const histogramBuckets = Array.from({ length: BUCKET_COUNT }, (_, i) => ({
@@ -51,6 +67,8 @@ export async function GET() {
     const bucket = byDay.get(key);
     if (bucket && (row.policyDecision === "allow" || row.policyDecision === "hold_for_review" || row.policyDecision === "auto_refund")) {
       bucket[row.policyDecision] += 1;
+      bucket.total += 1;
+      if (row.usedFallback) bucket.fallbackCount += 1;
     }
 
     if (typeof row.riskScore === "number" && Number.isFinite(row.riskScore)) {
@@ -59,8 +77,17 @@ export async function GET() {
     }
   }
 
+  // fallbackRate is derived here (not left for the client) so a zero-volume
+  // day reports null rather than a misleading 0% - "no traffic" and
+  // "100% AI-scored" are different facts.
+  const daily = Array.from(byDay.values()).map((d) => ({
+    ...d,
+    fallbackRate: d.total > 0 ? d.fallbackCount / d.total : null,
+  }));
+
   return Response.json({
-    daily: Array.from(byDay.values()),
+    days,
+    daily,
     riskHistogram: histogramBuckets,
     totalInWindow: rows.length,
   });

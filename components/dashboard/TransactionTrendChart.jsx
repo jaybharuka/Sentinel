@@ -67,7 +67,7 @@ export function TransactionTrendChart({ data, loading }) {
       aria-label={`Bar chart of daily transaction volume over the last 30 days, split by decision: allow, hold for review, and auto-refund.`}
     >
       <ResponsiveContainer width="100%" height={260}>
-        <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+        <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
           <XAxis
             dataKey="date"

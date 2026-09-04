@@ -23,6 +23,7 @@ import { SIGNAL_CATEGORIES, SIGNAL_DEFS } from "@/components/dashboard/riskSigna
 import { GettingStarted } from "@/components/dashboard/GettingStarted";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
+import { Insights } from "@/components/dashboard/Insights";
 import { TransactionTrendChart } from "@/components/dashboard/TransactionTrendChart";
 import { RiskHistogramChart } from "@/components/dashboard/RiskHistogramChart";
 import { StaggerContainer, StaggerItem } from "@/components/motion/Stagger";
@@ -36,6 +37,7 @@ const DASHBOARD_TABS = [
   { value: "overview", label: "Overview" },
   { value: "review-queue", label: "Review Queue" },
   { value: "transactions", label: "Transactions" },
+  { value: "insights", label: "Insights" },
   { value: "policy-signals", label: "Policy & Signals" },
   { value: "demo", label: "Demo & Testing" },
   { value: "alerts", label: "Alerts" },
@@ -869,6 +871,9 @@ export function DashboardContent({ emailVerified, merchantName }) {
               </StaggerItem>
             </StaggerContainer>
           )}
+
+          {/* ============ INSIGHTS ============ */}
+          {activeTab === "insights" && <Insights />}
 
           {/* ============ POLICY & SIGNALS ============ */}
           {activeTab === "policy-signals" && (

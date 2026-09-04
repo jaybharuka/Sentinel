@@ -48,7 +48,7 @@ export function RiskHistogramChart({ data, holdThreshold = 0.6, refundThreshold 
       aria-label={`Histogram of risk scores across all scored transactions, in ${data.length} buckets from 0 to 1. Bars are colored by zone: allow up to ${holdThreshold.toFixed(1)}, hold for review up to ${refundThreshold.toFixed(1)}, auto-refund above.`}
     >
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+        <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
           <XAxis
             dataKey="bucket"
