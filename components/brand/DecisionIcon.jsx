@@ -2,7 +2,7 @@ import { ShieldCheck, PauseCircle, Undo2 } from "lucide-react";
 
 const MAP = {
   allow: { Icon: ShieldCheck, className: "text-success" },
-  hold_for_review: { Icon: PauseCircle, className: "text-warning" },
+  hold_for_review: { Icon: PauseCircle, className: "text-warning-text" },
   auto_refund: { Icon: Undo2, className: "text-refund" },
 };
 

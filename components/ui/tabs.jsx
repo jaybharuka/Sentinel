@@ -20,7 +20,12 @@ function TabsList({ className, ...props }) {
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
+        // max-w-full + overflow-x-auto: a tab list wider than its
+        // container (dashboard's 5 tabs, the demo scenario picker) becomes
+        // horizontally scrollable instead of silently clipping the
+        // trailing tabs off the edge of a narrow viewport with no way to
+        // reach them.
+        "bg-muted text-muted-foreground inline-flex h-9 w-fit max-w-full items-center justify-start overflow-x-auto rounded-lg p-[3px]",
         className
       )}
       {...props}

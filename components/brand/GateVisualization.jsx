@@ -29,8 +29,12 @@ export function GateVisualization() {
   }, []);
 
   return (
-    <div className="w-full">
-      <div className="relative flex h-6 w-full overflow-hidden rounded-full bg-muted sm:h-8">
+    <div
+      className="w-full"
+      role="img"
+      aria-label={`Policy gate example: a transaction scoring ${DEMO_RISK.toFixed(2)} out of 1 lands in the auto-refund zone. Allow up to 0.6, hold for review up to 0.9, auto-refund above 0.9.`}
+    >
+      <div aria-hidden="true" className="relative flex h-6 w-full overflow-hidden rounded-full bg-muted sm:h-8">
         {ZONES.map((z) => (
           <motion.div
             key={z.key}
@@ -91,7 +95,7 @@ export function GateVisualization() {
         <span className="flex items-center gap-1.5 font-medium text-success">
           <span className="size-1.5 rounded-full bg-success" /> Allow, risk ≤ 0.6
         </span>
-        <span className="flex items-center gap-1.5 font-medium text-warning">
+        <span className="flex items-center gap-1.5 font-medium text-warning-text">
           <span className="size-1.5 rounded-full bg-warning" /> Hold for review, risk &gt; 0.6
         </span>
         <span className="flex items-center gap-1.5 font-medium text-refund">

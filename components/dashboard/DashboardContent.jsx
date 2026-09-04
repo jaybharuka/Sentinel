@@ -21,6 +21,9 @@ import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { RiskGauge } from "@/components/brand/RiskGauge";
 import { SIGNAL_CATEGORIES, SIGNAL_DEFS } from "@/components/dashboard/riskSignals";
 import { GettingStarted } from "@/components/dashboard/GettingStarted";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TransactionTrendChart } from "@/components/dashboard/TransactionTrendChart";
+import { RiskHistogramChart } from "@/components/dashboard/RiskHistogramChart";
 import { StaggerContainer, StaggerItem } from "@/components/motion/Stagger";
 import { useToast } from "@/components/ui/toast";
 
@@ -153,6 +156,8 @@ export function DashboardContent({ emailVerified }) {
   const [gettingStartedOpen, setGettingStartedOpen] = useState(true);
   const [bounds, setBounds] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const [trend, setTrend] = useState(null);
+  const [trendLoading, setTrendLoading] = useState(true);
   const [settingsForm, setSettingsForm] = useState(null);
   const [simInputs, setSimInputs] = useState(null);
   const [simResult, setSimResult] = useState(null);
@@ -162,8 +167,10 @@ export function DashboardContent({ emailVerified }) {
   const [pendingRefunds, setPendingRefunds] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [recentRows, setRecentRows] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
   const [auditRows, setAuditRows] = useState([]);
   const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(true);
   const [decisionFilter, setDecisionFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -181,7 +188,8 @@ export function DashboardContent({ emailVerified }) {
     fetch("/api/transactions?pageSize=20")
       .then((res) => res.json())
       .then((data) => setRecentRows(data.rows || []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setRecentLoading(false));
     refetchAlerts();
     refetchPendingRefunds();
   }
@@ -298,6 +306,14 @@ export function DashboardContent({ emailVerified }) {
   }, []);
 
   useEffect(() => {
+    fetch("/api/metrics/trend")
+      .then((res) => res.json())
+      .then(setTrend)
+      .catch(() => setTrend(null))
+      .finally(() => setTrendLoading(false));
+  }, []);
+
+  useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
       .then((data) => {
@@ -377,10 +393,12 @@ export function DashboardContent({ emailVerified }) {
     fetch("/api/transactions?pageSize=20")
       .then((res) => res.json())
       .then((data) => setRecentRows(data.rows || []))
-      .catch(() => setRecentRows([]));
+      .catch(() => setRecentRows([]))
+      .finally(() => setRecentLoading(false));
   }, []);
 
   useEffect(() => {
+    setAuditLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (decisionFilter !== "all") params.set("policyDecision", decisionFilter);
     if (sourceFilter !== "all") params.set("usedFallback", sourceFilter);
@@ -394,7 +412,8 @@ export function DashboardContent({ emailVerified }) {
       .catch(() => {
         setAuditRows([]);
         setAuditTotal(0);
-      });
+      })
+      .finally(() => setAuditLoading(false));
   }, [decisionFilter, sourceFilter, page]);
 
   const totalPages = Math.max(1, Math.ceil(auditTotal / pageSize));
@@ -474,7 +493,9 @@ export function DashboardContent({ emailVerified }) {
                   <button
                     type="button"
                     onClick={() => setHowItWorksOpen((o) => !o)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-left"
+                    aria-expanded={howItWorksOpen}
+                    aria-controls="how-this-works-panel"
+                    className="flex w-full items-center justify-between px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-lg"
                   >
                     <span className="text-sm font-medium">How this works</span>
                     <span className="text-muted-foreground text-xs">
@@ -484,6 +505,7 @@ export function DashboardContent({ emailVerified }) {
                   <AnimatePresence initial={false}>
                     {howItWorksOpen && (
                       <motion.div
+                        id="how-this-works-panel"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -515,7 +537,16 @@ export function DashboardContent({ emailVerified }) {
                 <section className="space-y-3">
                   <h2 className="text-lg font-medium">At a glance</h2>
                   {!metrics ? (
-                    <p className="text-muted-foreground text-sm">Loading…</p>
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10" aria-busy="true" aria-label="Loading metrics">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-14 w-24" />
+                      </div>
+                      <div className="w-full space-y-3 border-t border-border pt-2 sm:max-w-xs sm:flex-1 sm:border-t-0 sm:pt-0">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
                       <FeaturedStat label="Recall" value={formatPercent(metrics.recall)} />
@@ -535,11 +566,33 @@ export function DashboardContent({ emailVerified }) {
                 </section>
               </StaggerItem>
 
+              {/* Volume + decision-mix trend */}
+              <StaggerItem>
+                <section className="space-y-3">
+                  <div>
+                    <h2 className="text-lg font-medium">Volume &amp; decision mix</h2>
+                    <p className="text-muted-foreground text-sm">
+                      Transactions per day over the last 30 days, split by what the policy gate decided.
+                    </p>
+                  </div>
+                  <TransactionTrendChart data={trend?.daily} loading={trendLoading} />
+                </section>
+              </StaggerItem>
+
               {/* Today's budget gauge */}
               <StaggerItem>
                 <section className="space-y-3">
                   {!bounds ? (
-                    <p className="text-muted-foreground text-sm">Loading budget…</p>
+                    <Card aria-busy="true" aria-label="Loading today's budget">
+                      <CardHeader>
+                        <Skeleton className="h-3 w-40" />
+                        <Skeleton className="mt-1.5 h-5 w-32" />
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <Skeleton className="h-2 w-full rounded-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                      </CardContent>
+                    </Card>
                   ) : (
                     <Card>
                       <CardHeader>
@@ -625,6 +678,7 @@ export function DashboardContent({ emailVerified }) {
                   </div>
                   <TransactionsTable
                     rows={recentRows.slice(0, 5)}
+                    loading={recentLoading}
                     bounds={bounds}
                     emptyMessage="No transactions yet."
                     emptyAction={
@@ -646,7 +700,18 @@ export function DashboardContent({ emailVerified }) {
                 <section className="space-y-3">
                   <h2 className="text-lg font-medium">Held-out test set metrics</h2>
                   {!metrics ? (
-                    <p className="text-muted-foreground text-sm">Loading metrics…</p>
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10" aria-busy="true" aria-label="Loading held-out metrics">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-10" />
+                        <Skeleton className="h-14 w-20" />
+                        <Skeleton className="h-3 w-48" />
+                      </div>
+                      <div className="w-full space-y-3 border-t border-border pt-2 sm:max-w-sm sm:flex-1 sm:border-t-0 sm:pt-0">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <Skeleton key={i} className="h-4 w-full" />
+                        ))}
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
                       <FeaturedStat
@@ -735,6 +800,7 @@ export function DashboardContent({ emailVerified }) {
               <StaggerItem>
                 <TransactionsTable
                   rows={auditRows}
+                  loading={auditLoading}
                   bounds={bounds}
                   emptyMessage="No transactions match these filters."
                   emptyAction={
@@ -782,7 +848,20 @@ export function DashboardContent({ emailVerified }) {
               <StaggerItem id="policy-bounds" className="scroll-mt-6 space-y-3">
                 <h2 className="text-lg font-medium">Policy Bounds</h2>
                 {!bounds ? (
-                  <p className="text-muted-foreground text-sm">Loading policy bounds…</p>
+                  <div className="space-y-6" aria-busy="true" aria-label="Loading policy bounds">
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-32" />
+                        <Skeleton className="h-14 w-28" />
+                      </div>
+                      <div className="w-full space-y-3 sm:max-w-sm sm:flex-1">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} className="h-4 w-full" />
+                        ))}
+                      </div>
+                    </div>
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  </div>
                 ) : (
                   <>
                     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
@@ -820,8 +899,19 @@ export function DashboardContent({ emailVerified }) {
                           Where a score lands decides what happens
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-6">
                         <RiskGauge holdThreshold={bounds.holdThreshold} refundThreshold={bounds.minRiskScore} />
+                        <div className="space-y-2 border-t border-border pt-4">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Actual distribution of scored transactions across these zones (last 30 days)
+                          </p>
+                          <RiskHistogramChart
+                            data={trend?.riskHistogram}
+                            holdThreshold={bounds.holdThreshold}
+                            refundThreshold={bounds.minRiskScore}
+                            loading={trendLoading}
+                          />
+                        </div>
                       </CardContent>
                     </Card>
 
@@ -879,7 +969,14 @@ export function DashboardContent({ emailVerified }) {
                   </p>
                 </div>
                 {!simInputs ? (
-                  <p className="text-muted-foreground text-sm">Loading…</p>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading policy simulator">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="space-y-1">
+                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

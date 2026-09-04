@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StaggerContainer, StaggerItem } from "@/components/motion/Stagger";
 import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const FIELDS = [
   {
@@ -211,7 +212,21 @@ export function SettingsContent() {
       </StaggerItem>
 
       {!form ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <StaggerItem><Card aria-busy="true" aria-label="Loading policy bounds">
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="mt-1 h-4 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ))}
+            <Skeleton className="h-9 w-32" />
+          </CardContent>
+        </Card></StaggerItem>
       ) : (
         <StaggerItem><Card>
           <CardHeader>
@@ -269,7 +284,7 @@ export function SettingsContent() {
           <CardContent className="space-y-3">
             {justGeneratedKey && (
               <div className="space-y-2 rounded-md border-2 border-warning bg-warning/5 p-3">
-                <p className="text-warning text-xs font-medium">
+                <p className="text-warning-text text-xs font-medium">
                   Copy this now - you won't see the full key again after you leave this page.
                 </p>
                 <div className="flex items-center gap-2">
@@ -324,7 +339,17 @@ export function SettingsContent() {
           </CardHeader>
           <CardContent className="space-y-3">
             {!sessions ? (
-              <p className="text-muted-foreground text-sm">Loading…</p>
+              <div className="rounded-lg border divide-y" aria-busy="true" aria-label="Loading sessions">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
+                    <Skeleton className="h-8 w-20 shrink-0" />
+                  </div>
+                ))}
+              </div>
             ) : sessions.length === 0 ? (
               <p className="text-muted-foreground text-sm">No active sessions.</p>
             ) : (

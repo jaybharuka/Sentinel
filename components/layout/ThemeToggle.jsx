@@ -38,7 +38,7 @@ export function ThemeToggle({ className = "" }) {
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={`relative inline-flex size-8 items-center justify-center overflow-hidden rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground ${className}`}
+      className={`inline-flex size-8 items-center justify-center overflow-hidden rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground ${className}`}
     >
       <AnimatePresence mode="wait" initial={false}>
         {isDark ? (

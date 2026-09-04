@@ -40,15 +40,40 @@
   --input: oklch(0.89 0.01 264);
   --ring: oklch(0.47 0.19 264 / 40%);
 
-  /* Clear (allow) */
-  --success: oklch(0.56 0.13 165);
+  /* Clear (allow). Darkened from the original oklch(0.56 0.13 165) - WCAG
+     AA audit found the original only reached 4.17:1 against
+     --success-foreground (needs 4.5:1 for normal-weight small text, e.g.
+     badge text). This value clears both that pairing (4.88:1) and direct
+     text-success-on-background use (4.67:1) - one token, two use sites. */
+  --success: oklch(0.52 0.13 165);
   --success-foreground: oklch(0.99 0.005 264);
-  /* Flag (hold for review) */
+  /* Flag (hold for review). Unchanged - already clears 6.27:1 against
+     --warning-foreground for badge use. See --warning-text below for why
+     this token alone isn't reused for direct on-page text. */
   --warning: oklch(0.68 0.16 63);
   --warning-foreground: oklch(0.18 0.02 264);
+  /* Darker sibling of --warning, for text/icons set directly on the page
+     background (GateVisualization's legend, TransactionsTable's flagged-
+     signal icons, DecisionIcon) rather than on a --warning-filled badge.
+     --warning itself is tuned light enough to read well as a badge fill
+     against dark --warning-foreground text (6.27:1) - reusing that same
+     light value as *foreground* text against the page's near-white
+     background measured only 2.79:1, a real WCAG failure. Darkening
+     --warning itself to fix that would have broken the badge pairing the
+     other direction (drops to 3.89:1) - the two uses pull in opposite
+     directions, so they need separate tokens. This one clears 4.79:1
+     against --background.
+     Dark mode has no equivalent override below: --warning's dark value
+     already clears 9.06:1 as direct text, so --warning-text is simply
+     aliased back to --warning there. */
+  --warning-text: oklch(0.545 0.16 63);
   /* Refund (auto_refund) - distinct from --destructive, which stays for
-     genuine errors/failures. auto_refund is a decision, not a failure. */
-  --refund: oklch(0.6 0.19 33);
+     genuine errors/failures. auto_refund is a decision, not a failure.
+     Darkened from oklch(0.6 0.19 33) for the same reason as --success
+     above (badge pairing measured 4.19:1, direct text-refund-on-
+     background measured 4.01:1 - both below the 4.5:1 AA floor). This
+     value clears both (4.85:1 badge, 4.65:1 direct text). */
+  --refund: oklch(0.565 0.19 33);
   --refund-foreground: oklch(0.99 0.005 264);
 }
 
@@ -78,7 +103,11 @@
   --accent: oklch(0.27 0.009 60);
   --accent-foreground: oklch(0.93 0.01 70);
 
-  --destructive: oklch(0.66 0.2 25);
+  /* Darkened from oklch(0.66 0.2 25) - WCAG AA audit found the original
+     only reached 3.13:1 against --destructive-foreground (needs 4.5:1);
+     this clears 4.62:1. The only decision-adjacent token needing a fix in
+     dark mode - success/warning/refund all already cleared AA here. */
+  --destructive: oklch(0.565 0.2 25);
   --destructive-foreground: oklch(0.97 0.008 75);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
@@ -90,6 +119,11 @@
   /* Flag (hold for review) */
   --warning: oklch(0.77 0.15 63);
   --warning-foreground: oklch(0.18 0.03 63);
+  /* Already clears 9.06:1 as direct on-page text in dark mode (unlike
+     light mode - see --warning-text's light-mode definition above for
+     why the two modes need different handling), so no separate value
+     needed here; --color-warning-text just aliases back to --warning. */
+  --warning-text: oklch(0.77 0.15 63);
   /* Refund (auto_refund) */
   --refund: oklch(0.7 0.17 33);
   --refund-foreground: oklch(0.18 0.03 33);
@@ -119,6 +153,7 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
   --color-refund: var(--refund);
   --color-refund-foreground: var(--refund-foreground);
   --font-sans: var(--font-plex-sans);

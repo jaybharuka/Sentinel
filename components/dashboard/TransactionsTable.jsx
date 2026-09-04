@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DecisionIcon } from "@/components/brand/DecisionIcon";
 import { RiskGauge } from "@/components/brand/RiskGauge";
 import { SIGNAL_DEFS, countContributedSignals } from "@/components/dashboard/riskSignals";
@@ -131,8 +132,44 @@ function RefundStatus({ refundExecuted, refundId, refundError }) {
   );
 }
 
+// Same column count/shape as the real table below, so the loading state
+// occupies the same footprint - no layout jump when real rows replace it.
+function SkeletonRows({ count = 5 }) {
+  return (
+    <div className="rounded-lg border border-border bg-card" aria-busy="true" aria-label="Loading transactions">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Txn ID</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Risk</TableHead>
+            <TableHead>Signals</TableHead>
+            <TableHead>Decision</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>When</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: count }).map((_, i) => (
+            <TableRow key={i}>
+              {Array.from({ length: 9 }).map((_, j) => (
+                <TableCell key={j}>
+                  <Skeleton className="h-4 w-full max-w-20" />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export function TransactionsTable({
   rows,
+  loading = false,
   emptyMessage = "No transactions match these filters.",
   emptyAction,
   bounds,
@@ -148,6 +185,10 @@ export function TransactionsTable({
   const [overrideOtherText, setOverrideOtherText] = useState("");
   const [overrideSubmitting, setOverrideSubmitting] = useState(false);
   const [overrideError, setOverrideError] = useState(null);
+
+  if (loading && (!rows || rows.length === 0)) {
+    return <SkeletonRows />;
+  }
 
   if (!rows || rows.length === 0) {
     return (
@@ -249,8 +290,18 @@ export function TransactionsTable({
             return (
               <Fragment key={row.id}>
                 <MotionRow
-                  className="cursor-pointer transition-shadow hover:shadow-[inset_2px_0_0_var(--color-primary)]"
+                  className="cursor-pointer transition-shadow hover:shadow-[inset_2px_0_0_var(--color-primary)] focus-visible:shadow-[inset_2px_0_0_var(--color-primary)] focus-visible:outline-none focus-visible:bg-muted/50"
                   onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                  tabIndex={0}
+                  role="button"
+                  aria-expanded={isExpanded}
+                  aria-label={`Transaction ${row.txnId}, ${formatINR(row.amount)}, decision ${row.policyDecision || "allow"}. ${isExpanded ? "Press Enter to collapse details." : "Press Enter to see full details."}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpandedId(isExpanded ? null : row.id);
+                    }
+                  }}
                   variants={ROW_VARIANTS}
                   initial="hidden"
                   animate="show"
@@ -401,7 +452,7 @@ export function TransactionsTable({
                                     }
                                   >
                                     <def.Icon
-                                      className={`size-3.5 shrink-0 ${flagged ? "text-warning" : "text-muted-foreground/70"}`}
+                                      className={`size-3.5 shrink-0 ${flagged ? "text-warning-text" : "text-muted-foreground/70"}`}
                                     />
                                     <span className={`truncate ${flagged ? "font-medium text-foreground" : ""}`}>
                                       {def.label}: {def.describe(row.features[def.key])}

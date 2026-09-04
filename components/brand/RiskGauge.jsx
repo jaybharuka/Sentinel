@@ -29,9 +29,14 @@ export function RiskGauge({ riskScore, holdThreshold = 0.6, refundThreshold = 0.
 
   const isXs = size === "xs";
 
+  const gaugeLabel = hasScore
+    ? `Risk score ${clamped.toFixed(2)} out of 1. Zones: allow up to ${holdThreshold.toFixed(1)}, hold for review up to ${refundThreshold.toFixed(1)}, auto-refund above ${refundThreshold.toFixed(1)}.`
+    : `Risk zones: allow up to ${holdThreshold.toFixed(1)}, hold for review up to ${refundThreshold.toFixed(1)}, auto-refund above ${refundThreshold.toFixed(1)}.`;
+
   return (
-    <div className={isXs ? "w-16 shrink-0" : "w-full"}>
+    <div className={isXs ? "w-16 shrink-0" : "w-full"} role="img" aria-label={gaugeLabel}>
       <div
+        aria-hidden="true"
         className={`relative flex ${isXs ? "h-1.5" : "h-2.5"} w-full overflow-hidden rounded-full bg-muted`}
       >
         <div className="bg-success" style={{ width: `${allowPct}%` }} />

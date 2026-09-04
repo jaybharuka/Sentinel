@@ -32,7 +32,7 @@ export function AnalyzingProgress() {
   );
 
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-2" aria-live="polite" aria-label="Payment analysis progress">
       {STEPS.map((step, i) => {
         const done = i < activeIndex;
         const active = i === activeIndex;
