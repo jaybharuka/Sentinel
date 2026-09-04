@@ -46,16 +46,18 @@ export function Header({ merchant }) {
           })}
         </nav>
       </div>
-      {/* Name/email hidden below sm - it's redundant with the account
-          details already on the Settings page, and there's no room for it
-          next to the nav + logout button at a 390px viewport without
-          either clipping (the original bug) or wrapping into a third row. */}
+      {/* One identifying line (email), not name+email stacked - the name
+          now has a more useful home as the Dashboard page's own heading
+          (see DashboardContent.jsx), so repeating it here on top of that
+          was double coverage for the same fact within one viewport. Email
+          stays as the account's unique identifier, still hidden below sm:
+          it's redundant with the account details already on the Settings
+          page, and there's no room for it next to the nav + logout button
+          at a 390px viewport without either clipping (the original bug)
+          or wrapping into a third row. */}
       <div className="flex items-center gap-3">
         <ThemeToggle />
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium">{merchant.name}</p>
-          <p className="text-xs text-muted-foreground">{merchant.email}</p>
-        </div>
+        <p className="text-muted-foreground hidden text-sm sm:block">{merchant.email}</p>
         <Button variant="outline" size="sm" onClick={handleLogout}>
           Log out
         </Button>

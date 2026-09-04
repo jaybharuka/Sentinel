@@ -121,7 +121,7 @@ function formatDateTime(value) {
   });
 }
 
-export function DashboardContent({ emailVerified }) {
+export function DashboardContent({ emailVerified, merchantName }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -451,9 +451,12 @@ export function DashboardContent({ emailVerified }) {
         </div>
       )}
 
+      {/* No "Dashboard" eyebrow / "Sentinel" heading here - the top nav
+          already says both. The h1 carries real information instead: whose
+          workspace this is, which the Header now only shows on wider
+          viewports (see Header.jsx). */}
       <div>
-        <p className="font-mono text-xs uppercase tracking-widest text-primary">Dashboard</p>
-        <h1 className="mt-1 text-2xl font-semibold">Sentinel</h1>
+        <h1 className="text-2xl font-semibold">{merchantName}</h1>
         <p className="text-muted-foreground text-sm">
           Explainable fraud &amp; chargeback risk guard, with an audit trail and held-out test metrics.
         </p>
