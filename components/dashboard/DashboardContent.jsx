@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { ArrowUp, ArrowDown, Minus, Lightbulb } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -114,6 +115,69 @@ function StatList({ items, className }) {
       ))}
     </dl>
   );
+}
+
+// Policy Simulator delta indicator: an up/down arrow + color showing
+// whether a metric improved or worsened. "Higher is better" (precision/
+// recall/F1) and "lower is better" (false-positive cost) need opposite
+// color logic for the same-direction arrow, so the caller says which one
+// this metric is. Decision-count deltas pass higherIsBetter: null - a
+// shift in how many transactions land in each bucket has no inherent
+// "good" direction on its own, so those render as a neutral change, not a
+// verdict, rather than borrowing decision colors that would imply one.
+function SimDelta({ diff, higherIsBetter, formatDiff }) {
+  if (diff == null || Math.abs(diff) < 1e-9) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+        <Minus className="size-3.5" /> no change
+      </span>
+    );
+  }
+  const up = diff > 0;
+  const isGood = higherIsBetter == null ? null : higherIsBetter ? up : !up;
+  const colorClass = isGood == null ? "text-foreground" : isGood ? "text-success" : "text-refund";
+  const Icon = up ? ArrowUp : ArrowDown;
+  return (
+    <span className={`inline-flex items-center gap-1 text-sm font-semibold ${colorClass}`}>
+      <Icon className="size-4" />
+      {formatDiff(Math.abs(diff))}
+    </span>
+  );
+}
+
+function SimMetricCard({ label, currentValue, simulatedValue, diff, higherIsBetter, formatDiff }) {
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-4">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="flex items-baseline gap-2 font-mono">
+        <span className="text-muted-foreground text-base">{currentValue}</span>
+        <span className="text-muted-foreground text-sm">→</span>
+        <span className="text-2xl font-semibold">{simulatedValue}</span>
+      </div>
+      <SimDelta diff={diff} higherIsBetter={higherIsBetter} formatDiff={formatDiff} />
+    </div>
+  );
+}
+
+// Detects the specific, real pattern this simulator has surfaced before:
+// a threshold change that only moves transactions between hold_for_review
+// and auto_refund (both already "flagged" for precision/recall purposes)
+// leaves accuracy identical - the change only affects what happens next
+// (a human review vs. an automatic refund), not which transactions get
+// caught. Worth calling out explicitly rather than leaving a merchant to
+// wonder why the accuracy numbers didn't move.
+function detectMixOnlyShift(simResult) {
+  if (!simResult) return false;
+  const { current, simulated } = simResult;
+  const accuracyUnchanged =
+    current.precision === simulated.precision &&
+    current.recall === simulated.recall &&
+    current.f1 === simulated.f1;
+  const mixChanged =
+    current.decisionCounts.allow !== simulated.decisionCounts.allow ||
+    current.decisionCounts.hold_for_review !== simulated.decisionCounts.hold_for_review ||
+    current.decisionCounts.auto_refund !== simulated.decisionCounts.auto_refund;
+  return accuracyUnchanged && mixChanged;
 }
 
 function formatDateTime(value) {
@@ -878,6 +942,239 @@ export function DashboardContent({ emailVerified, merchantName }) {
           {/* ============ POLICY & SIGNALS ============ */}
           {activeTab === "policy-signals" && (
             <StaggerContainer className="space-y-10">
+              {/* Policy Simulator: pure re-computation against already-stored
+                  synthetic scores, no AI calls, instant. Promoted to the top
+                  of this tab and given real visual weight - Stripe Radar's
+                  own framing for this exact feature is "simulated against 6
+                  months of real charges before going live"; ours is honest
+                  about being a 400-row synthetic set rather than borrowing
+                  that specific claim, but the "backtest before you commit"
+                  framing is the same idea. */}
+              <StaggerItem id="policy-simulator" className="scroll-mt-6 space-y-3">
+                <div>
+                  <p className="font-mono text-xs uppercase tracking-widest text-primary">
+                    Before you change your policy
+                  </p>
+                  <h2 className="mt-1 text-2xl font-semibold">See what it would have done</h2>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Simulated against your 400-row synthetic held-out test set's already-stored AI
+                    scores, not a live re-evaluation of new transactions. Changing a threshold here
+                    re-runs the policy gate against those past scores instantly; it never calls the
+                    AI again and doesn't predict how future transactions will actually score.
+                  </p>
+                </div>
+                {!simInputs ? (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading policy simulator">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="space-y-1">
+                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Max single auto-refund (₹)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={simInputs.autoRefundMaxAmount}
+                          onChange={(e) => updateSimInput("autoRefundMaxAmount", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Daily refund budget (₹)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={simInputs.dailyRefundCap}
+                          onChange={(e) => updateSimInput("dailyRefundCap", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Auto-refund min risk score (0-1)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={simInputs.autoRefundMinRiskScore}
+                          onChange={(e) => updateSimInput("autoRefundMinRiskScore", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Auto-refund min confidence (0-1)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={simInputs.autoRefundMinConfidence}
+                          onChange={(e) => updateSimInput("autoRefundMinConfidence", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Hold-for-review risk threshold (0-1)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={simInputs.holdForReviewMinRiskScore}
+                          onChange={(e) => updateSimInput("holdForReviewMinRiskScore", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button type="button" onClick={handleSimulate} disabled={simLoading}>
+                        {simLoading ? "Simulating…" : "Simulate"}
+                      </Button>
+                      {simError && <p className="text-destructive text-sm">{simError}</p>}
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                      {simResult && (
+                        <motion.div
+                          key="sim-result"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                          className="space-y-4"
+                        >
+                          {detectMixOnlyShift(simResult) && (
+                            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                              <Lightbulb className="text-primary mt-0.5 size-4 shrink-0" />
+                              <p>
+                                <span className="font-medium text-foreground">
+                                  Why precision and recall didn't move:{" "}
+                                </span>
+                                this change only shifted decisions between hold-for-review and
+                                auto-refund - both already count as "flagged," so the same
+                                transactions get caught either way. Only what happens next (a human
+                                review vs. an automatic refund) changed, which shows up below in the
+                                decision mix instead.
+                              </p>
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+                              Accuracy
+                            </p>
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                              <SimMetricCard
+                                label="Precision"
+                                currentValue={formatPercent(simResult.current.precision)}
+                                simulatedValue={formatPercent(simResult.simulated.precision)}
+                                diff={
+                                  simResult.current.precision != null && simResult.simulated.precision != null
+                                    ? simResult.simulated.precision - simResult.current.precision
+                                    : null
+                                }
+                                higherIsBetter={true}
+                                formatDiff={(d) => `${(d * 100).toFixed(1)}pp`}
+                              />
+                              <SimMetricCard
+                                label="Recall"
+                                currentValue={formatPercent(simResult.current.recall)}
+                                simulatedValue={formatPercent(simResult.simulated.recall)}
+                                diff={
+                                  simResult.current.recall != null && simResult.simulated.recall != null
+                                    ? simResult.simulated.recall - simResult.current.recall
+                                    : null
+                                }
+                                higherIsBetter={true}
+                                formatDiff={(d) => `${(d * 100).toFixed(1)}pp`}
+                              />
+                              <SimMetricCard
+                                label="F1"
+                                currentValue={simResult.current.f1 != null ? simResult.current.f1.toFixed(3) : "–"}
+                                simulatedValue={
+                                  simResult.simulated.f1 != null ? simResult.simulated.f1.toFixed(3) : "–"
+                                }
+                                diff={
+                                  simResult.current.f1 != null && simResult.simulated.f1 != null
+                                    ? simResult.simulated.f1 - simResult.current.f1
+                                    : null
+                                }
+                                higherIsBetter={true}
+                                formatDiff={(d) => d.toFixed(3)}
+                              />
+                              <SimMetricCard
+                                label="False-positive cost"
+                                currentValue={formatINR(simResult.current.falsePositiveCost)}
+                                simulatedValue={formatINR(simResult.simulated.falsePositiveCost)}
+                                diff={simResult.simulated.falsePositiveCost - simResult.current.falsePositiveCost}
+                                higherIsBetter={false}
+                                formatDiff={(d) => formatINR(d)}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+                              Decision mix
+                            </p>
+                            <div className="grid gap-4 sm:grid-cols-3">
+                              <SimMetricCard
+                                label="Allow"
+                                currentValue={simResult.current.decisionCounts.allow}
+                                simulatedValue={simResult.simulated.decisionCounts.allow}
+                                diff={simResult.simulated.decisionCounts.allow - simResult.current.decisionCounts.allow}
+                                higherIsBetter={null}
+                                formatDiff={(d) => `${d}`}
+                              />
+                              <SimMetricCard
+                                label="Hold for review"
+                                currentValue={simResult.current.decisionCounts.hold_for_review}
+                                simulatedValue={simResult.simulated.decisionCounts.hold_for_review}
+                                diff={
+                                  simResult.simulated.decisionCounts.hold_for_review -
+                                  simResult.current.decisionCounts.hold_for_review
+                                }
+                                higherIsBetter={null}
+                                formatDiff={(d) => `${d}`}
+                              />
+                              <SimMetricCard
+                                label="Auto-refund"
+                                currentValue={simResult.current.decisionCounts.auto_refund}
+                                simulatedValue={simResult.simulated.decisionCounts.auto_refund}
+                                diff={
+                                  simResult.simulated.decisionCounts.auto_refund -
+                                  simResult.current.decisionCounts.auto_refund
+                                }
+                                higherIsBetter={null}
+                                formatDiff={(d) => `${d}`}
+                              />
+                            </div>
+                          </div>
+
+                          <p className="text-muted-foreground text-xs">
+                            Simulated against your {simResult.totalRows}-row synthetic test set's
+                            already-stored AI scores.
+                            {simResult.unparseable > 0 &&
+                              ` ${simResult.unparseable} row(s) could not be re-simulated and were excluded.`}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleApplySimulatedPolicy}
+                            disabled={applyingPolicy}
+                          >
+                            {applyingPolicy ? "Applying…" : "Apply this policy"}
+                          </Button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </StaggerItem>
+
               <StaggerItem id="policy-bounds" className="scroll-mt-6 space-y-3">
                 <h2 className="text-lg font-medium">Policy Bounds</h2>
                 {!bounds ? (
@@ -986,178 +1283,6 @@ export function DashboardContent({ emailVerified, merchantName }) {
                       action, but only this policy gate can approve real money movement.
                     </p>
                   </>
-                )}
-              </StaggerItem>
-
-              {/* Policy Simulator: pure re-computation against already-stored
-                  synthetic scores, no AI calls, instant. */}
-              <StaggerItem id="policy-simulator" className="scroll-mt-6 space-y-3">
-                <div>
-                  <h2 className="text-lg font-medium">Policy Simulator</h2>
-                  <p className="text-muted-foreground text-sm">
-                    Simulated against your 400-row synthetic held-out test set's already-stored AI
-                    scores, not a live re-evaluation of new transactions. Changing a threshold here
-                    re-runs the policy gate against those past scores instantly; it never calls the
-                    AI again and doesn't predict how future transactions will actually score.
-                  </p>
-                </div>
-                {!simInputs ? (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading policy simulator">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className="space-y-1">
-                        <Skeleton className="h-4 w-2/3" />
-                        <Skeleton className="h-9 w-full" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Max single auto-refund (₹)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={simInputs.autoRefundMaxAmount}
-                          onChange={(e) => updateSimInput("autoRefundMaxAmount", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Daily refund budget (₹)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={simInputs.dailyRefundCap}
-                          onChange={(e) => updateSimInput("dailyRefundCap", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Auto-refund min risk score (0-1)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={simInputs.autoRefundMinRiskScore}
-                          onChange={(e) => updateSimInput("autoRefundMinRiskScore", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Auto-refund min confidence (0-1)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={simInputs.autoRefundMinConfidence}
-                          onChange={(e) => updateSimInput("autoRefundMinConfidence", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm font-medium">Hold-for-review risk threshold (0-1)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={simInputs.holdForReviewMinRiskScore}
-                          onChange={(e) => updateSimInput("holdForReviewMinRiskScore", e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Button type="button" onClick={handleSimulate} disabled={simLoading}>
-                        {simLoading ? "Simulating…" : "Simulate"}
-                      </Button>
-                      {simError && <p className="text-destructive text-sm">{simError}</p>}
-                    </div>
-
-                    <AnimatePresence mode="wait">
-                      {simResult && (
-                        <motion.div
-                          key="sim-result"
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                          className="space-y-3"
-                        >
-                          <div className="overflow-x-auto rounded-lg border border-border">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                                  <th className="px-3 py-2 font-medium">Metric</th>
-                                  <th className="px-3 py-2 font-medium">Current (live bounds)</th>
-                                  <th className="px-3 py-2 font-medium">Simulated (candidate bounds)</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border">
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">Precision</td>
-                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.current.precision)}</td>
-                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.simulated.precision)}</td>
-                                </tr>
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">Recall</td>
-                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.current.recall)}</td>
-                                  <td className="px-3 py-2 font-mono">{formatPercent(simResult.simulated.recall)}</td>
-                                </tr>
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">F1</td>
-                                  <td className="px-3 py-2 font-mono">
-                                    {simResult.current.f1 != null ? simResult.current.f1.toFixed(3) : "–"}
-                                  </td>
-                                  <td className="px-3 py-2 font-mono">
-                                    {simResult.simulated.f1 != null ? simResult.simulated.f1.toFixed(3) : "–"}
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">False-positive cost</td>
-                                  <td className="px-3 py-2 font-mono">{formatINR(simResult.current.falsePositiveCost)}</td>
-                                  <td className="px-3 py-2 font-mono">{formatINR(simResult.simulated.falsePositiveCost)}</td>
-                                </tr>
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">Allow</td>
-                                  <td className="px-3 py-2 font-mono">{simResult.current.decisionCounts.allow}</td>
-                                  <td className="px-3 py-2 font-mono">{simResult.simulated.decisionCounts.allow}</td>
-                                </tr>
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">Hold for review</td>
-                                  <td className="px-3 py-2 font-mono">
-                                    {simResult.current.decisionCounts.hold_for_review}
-                                  </td>
-                                  <td className="px-3 py-2 font-mono">
-                                    {simResult.simulated.decisionCounts.hold_for_review}
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td className="px-3 py-2 text-muted-foreground">Auto-refund</td>
-                                  <td className="px-3 py-2 font-mono">{simResult.current.decisionCounts.auto_refund}</td>
-                                  <td className="px-3 py-2 font-mono">{simResult.simulated.decisionCounts.auto_refund}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            Simulated against your {simResult.totalRows}-row synthetic test set's
-                            already-stored AI scores.
-                            {simResult.unparseable > 0 &&
-                              ` ${simResult.unparseable} row(s) could not be re-simulated and were excluded.`}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleApplySimulatedPolicy}
-                            disabled={applyingPolicy}
-                          >
-                            {applyingPolicy ? "Applying…" : "Apply this policy"}
-                          </Button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 )}
               </StaggerItem>
 
