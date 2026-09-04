@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -22,23 +23,34 @@ export function Header({ merchant }) {
   }
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-border pb-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-x-6">
-        <Link href="/dashboard" className="font-display text-base font-semibold tracking-tight">
+    // A real toolbar surface (bordered, filled, elevated) rather than text
+    // floating directly on the page background with only a border-bottom -
+    // the contained card also softens the empty space between the brand+nav
+    // cluster and the account cluster, since the eye now reads one bounded
+    // bar rather than two disconnected floating groups with a gap between.
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm sm:px-5">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <Link href="/dashboard" className="font-display text-xl font-bold tracking-tight">
           Sentinel
         </Link>
-        <nav className="flex flex-wrap gap-x-3 gap-y-1 text-sm sm:gap-x-4">
+        <nav className="flex flex-wrap items-center gap-x-1 gap-y-1">
           {NAV_LINKS.map((link) => {
             const active = pathname === link.href;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={
+                // Same pill-on-active grammar as the Tabs component
+                // (data-[state=active]:bg-background inside a muted
+                // container) - one consistent "this is the active thing"
+                // visual language across the whole app, not a second one
+                // invented just for this nav.
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   active
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground"
-                }
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                )}
               >
                 {link.label}
               </Link>
