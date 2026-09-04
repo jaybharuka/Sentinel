@@ -55,13 +55,6 @@ const SOURCE_TABS = [
   { value: "true", label: "Fallback" },
 ];
 
-const PROVIDER_LABELS = {
-  "groq-primary": "Groq primary",
-  "groq-secondary": "Groq secondary",
-  gemini: "Gemini",
-  fallback: "Fallback (rule-based)",
-};
-
 // Tab-body entrance: a quick fade+slide on mount, and a slight reverse-slide
 // on exit - AnimatePresence's mode="wait" makes the outgoing tab finish its
 // exit before the incoming one starts, so the two never overlap/jank.
@@ -160,9 +153,6 @@ export function DashboardContent({ emailVerified }) {
   const [gettingStartedOpen, setGettingStartedOpen] = useState(true);
   const [bounds, setBounds] = useState(null);
   const [metrics, setMetrics] = useState(null);
-  const [benchmarkMetrics, setBenchmarkMetrics] = useState(null);
-  const [liveMetrics, setLiveMetrics] = useState(null);
-  const [providerHealth, setProviderHealth] = useState(null);
   const [settingsForm, setSettingsForm] = useState(null);
   const [simInputs, setSimInputs] = useState(null);
   const [simResult, setSimResult] = useState(null);
@@ -305,27 +295,6 @@ export function DashboardContent({ emailVerified }) {
       .then((res) => res.json())
       .then(setMetrics)
       .catch(() => setMetrics(null));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/metrics/benchmark")
-      .then((res) => res.json())
-      .then(setBenchmarkMetrics)
-      .catch(() => setBenchmarkMetrics(null));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/metrics/live")
-      .then((res) => res.json())
-      .then(setLiveMetrics)
-      .catch(() => setLiveMetrics(null));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/metrics/provider-health")
-      .then((res) => res.json())
-      .then(setProviderHealth)
-      .catch(() => setProviderHealth(null));
   }, []);
 
   useEffect(() => {
@@ -713,218 +682,6 @@ export function DashboardContent({ emailVerified }) {
                 </section>
               </StaggerItem>
 
-              {/* External Benchmark: Kaggle Credit Card Fraud Dataset */}
-              <StaggerItem>
-                <section className="space-y-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-medium">External Benchmark (Kaggle Credit Card Fraud Dataset)</h2>
-                      <Badge variant="outline" className="text-muted-foreground text-[10px] font-normal uppercase tracking-wide">
-                        Secondary validation
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground text-sm">
-                      Run against a real, publicly available, independently-labeled fraud dataset not
-                      authored by us. Feature mapping is necessarily partial since this dataset's
-                      fields are anonymized; see the methodology note below.
-                    </p>
-                  </div>
-                  {!benchmarkMetrics ? (
-                    <p className="text-muted-foreground text-sm">Loading benchmark metrics…</p>
-                  ) : benchmarkMetrics.totalScored === 0 ? (
-                    <p className="text-muted-foreground text-sm">
-                      Not yet run. See scripts/sampleKaggleDataset.js and
-                      app/api/seed/kaggle-benchmark.
-                    </p>
-                  ) : (
-                    <>
-                      {/* Compact list only here, deliberately no FeaturedStat - this
-                          number shouldn't compete visually with the 93% recall
-                          headline above; see the methodology note for why 0% is
-                          the honest, expected result on this reduced signal set. */}
-                      <StatList
-                        className="max-w-md"
-                        items={[
-                          {
-                            label: "Recall",
-                            value: formatPercent(benchmarkMetrics.recall),
-                            info: "Deliberately near-zero on this reduced-signal dataset - honest abstention, not failure. See the note below.",
-                          },
-                          { label: "Precision", value: formatPercent(benchmarkMetrics.precision) },
-                          {
-                            label: "F1",
-                            value: benchmarkMetrics.f1 != null ? benchmarkMetrics.f1.toFixed(3) : "–",
-                          },
-                          {
-                            label: "Scored so far",
-                            value: `${benchmarkMetrics.totalScored} / ${benchmarkMetrics.datasetSize}`,
-                            info: "Rows from the sampled subset run through the pipeline.",
-                          },
-                          { label: "Fallback rate", value: formatPercent(benchmarkMetrics.fallbackRate) },
-                        ]}
-                      />
-
-                      <Card className="border-warning/40 bg-warning/5">
-                        <CardHeader>
-                          <CardTitle className="font-display text-base">
-                            Methodology &amp; honest abstention
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2 text-sm text-muted-foreground">
-                          <p>
-                            This dataset (
-                            <a
-                              href={benchmarkMetrics.datasetUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-foreground underline"
-                            >
-                              {benchmarkMetrics.datasetSource}
-                            </a>
-                            ) only exposes <code className="font-mono text-xs">Time</code>,{" "}
-                            <code className="font-mono text-xs">Amount</code>, and 28 PCA-anonymized
-                            columns published specifically so no one, including us, can recover what
-                            they represent. Of our 12 signals, only two have an honest equivalent here:
-                            the raw amount, and an approximate odd-hour signal derived from elapsed
-                            time. The other ten (velocity, chargeback history, merchant context,
-                            account age, and the rest) don't exist for this data. There's no customer,
-                            email, or merchant history to compute them from, so they're omitted rather
-                            than defaulted to a fake "clean" value.
-                          </p>
-                          <p>
-                            With only two weak signals available, the system correctly never crosses
-                            its hold-for-review threshold on this sample: 0% recall, and precision is
-                            undefined because zero positive predictions were made at all. That's{" "}
-                            <strong className="text-foreground">honest abstention, not failure</strong>:
-                            it declines to fabricate confidence it doesn't have, rather than
-                            hallucinating a fraud signal out of data that can't actually support one.
-                            The same scoring pipeline and policy gate that catch real signals in the
-                            synthetic and live data above have nothing to work with here, which is
-                            itself evidence the system isn't pattern-matching noise into false
-                            positives.
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </>
-                  )}
-                </section>
-              </StaggerItem>
-
-              {/* Live Accuracy: accumulating from real Razorpay transactions */}
-              <StaggerItem>
-                <section className="space-y-3">
-                  <div>
-                    <h2 className="text-lg font-medium">
-                      Live Accuracy (accumulating from real Razorpay transactions)
-                    </h2>
-                    <p className="text-muted-foreground text-sm">
-                      Precision/recall computed only from real payments with a confirmed real-world
-                      outcome: a genuine dispute via Razorpay's{" "}
-                      <code className="font-mono text-xs">payment.dispute.created</code> webhook
-                      retroactively labels the original transaction as fraud. This grows as real
-                      disputes (and, over time, more confirmed-clean volume) accumulate. It is not
-                      synthetic.
-                    </p>
-                  </div>
-                  {!liveMetrics ? (
-                    <p className="text-muted-foreground text-sm">Loading live metrics…</p>
-                  ) : liveMetrics.totalLabeled === 0 ? (
-                    <p className="text-muted-foreground text-sm italic">
-                      N=0 real transactions with a confirmed outcome so far. No disputes have landed
-                      on a live payment yet. This panel activates automatically the moment one does;
-                      it's shown here to demonstrate the mechanism is live and real, not a simulation.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
-                        <FeaturedStat label="N (confirmed outcomes)" value={liveMetrics.totalLabeled} />
-                        <StatList
-                          className="sm:max-w-xs sm:flex-1"
-                          items={[
-                            { label: "Precision", value: formatPercent(liveMetrics.precision) },
-                            { label: "Recall", value: formatPercent(liveMetrics.recall) },
-                            {
-                              label: "F1",
-                              value: liveMetrics.f1 != null ? liveMetrics.f1.toFixed(3) : "–",
-                            },
-                          ]}
-                        />
-                      </div>
-                      <p className="text-muted-foreground text-xs italic">
-                        N={liveMetrics.totalLabeled} real transaction
-                        {liveMetrics.totalLabeled === 1 ? "" : "s"} with a confirmed outcome so far,
-                        too small to be statistically meaningful yet. Shown for transparency and to
-                        demonstrate the ground-truth mechanism is live and real, not synthetic.
-                      </p>
-                    </>
-                  )}
-                </section>
-              </StaggerItem>
-
-              {/* Risk Engine Health: provider mix + scoring latency,
-                  operational rather than accuracy-focused */}
-              <StaggerItem>
-                <section className="space-y-3">
-                  <div>
-                    <h2 className="text-lg font-medium">Risk Engine Health</h2>
-                    <p className="text-muted-foreground text-sm">
-                      Which provider actually scored each request, and how long it took. Scoped to
-                      real (razorpay_live) and synthetic held-out traffic combined - not the Kaggle
-                      benchmark (a different, reduced prompt) or demo scenarios (no real scoring call
-                      is made).
-                    </p>
-                  </div>
-                  {!providerHealth ? (
-                    <p className="text-muted-foreground text-sm">Loading…</p>
-                  ) : providerHealth.instrumented === 0 ? (
-                    <p className="text-muted-foreground text-sm italic">
-                      No instrumented data yet. Provider and latency tracking were added after the
-                      existing {providerHealth.totalInScope} synthetic/live rows were already scored,
-                      so none of them have this recorded - this panel populates as new transactions
-                      are scored from here on.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
-                        <FeaturedStat
-                          label="Requests scored"
-                          value={providerHealth.instrumented}
-                          caption={`Of ${providerHealth.totalInScope} rows in scope (${providerHealth.liveCount} live, ${providerHealth.syntheticCount} synthetic) - only rows scored after provider/latency tracking shipped are counted here.`}
-                        />
-                        <StatList
-                          className="sm:max-w-sm sm:flex-1"
-                          items={[
-                            ...Object.entries(providerHealth.providerCounts).map(([provider, count]) => ({
-                              label: PROVIDER_LABELS[provider] || provider,
-                              value: `${count} (${Math.round((count / providerHealth.instrumented) * 100)}%)`,
-                            })),
-                            {
-                              label: "Median latency",
-                              value:
-                                providerHealth.latency.medianMs != null
-                                  ? `${providerHealth.latency.medianMs}ms`
-                                  : "–",
-                            },
-                            {
-                              label: "p95 latency",
-                              value:
-                                providerHealth.latency.p95Ms != null
-                                  ? `${providerHealth.latency.p95Ms}ms`
-                                  : "–",
-                              info: "95% of scoring calls resolved at or below this time.",
-                            },
-                          ]}
-                        />
-                      </div>
-                      <p className="text-muted-foreground text-xs italic">
-                        {providerHealth.liveCount < 20
-                          ? `Only ${providerHealth.liveCount} real (razorpay_live) transaction${providerHealth.liveCount === 1 ? "" : "s"} in this data - the mix and latency above are dominated by synthetic traffic, not yet a reliable picture of real-world provider behavior.`
-                          : `${providerHealth.liveCount} real (razorpay_live) transactions contribute to this data, alongside ${providerHealth.syntheticCount} synthetic.`}
-                      </p>
-                    </>
-                  )}
-                </section>
-              </StaggerItem>
             </StaggerContainer>
           )}
 
