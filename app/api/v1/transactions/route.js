@@ -53,7 +53,7 @@ export async function GET(request) {
     return Response.json({ error: "Invalid API key" }, { status: 401 });
   }
 
-  const rateLimit = checkRateLimit(settings.apiKeyHash);
+  const rateLimit = await checkRateLimit(settings.apiKeyHash);
   if (!rateLimit.allowed) {
     return Response.json(
       { error: "Rate limit exceeded", retryAfterSeconds: rateLimit.retryAfterSeconds },
