@@ -6,6 +6,13 @@ const REASON_LABELS = {
   false_positive: "False positive",
   customer_contacted: "Customer contacted us",
   other: "Other",
+  // Distinct from the four reasons above (all picked deliberately from the
+  // full override form on the Transactions tab) - this one is only ever
+  // sent by the Review Queue's one-click "Approve" action, which
+  // intentionally skips the reason picker for speed. Keeping it a separate,
+  // honest label rather than defaulting to e.g. "trusted_customer" means
+  // the audit trail never claims a reason the merchant didn't actually pick.
+  queue_quick_approve: "Approved from Review Queue (no reason given)",
 };
 
 // Human override: a merchant reversing a hold_for_review or auto_refund

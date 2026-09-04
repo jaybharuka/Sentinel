@@ -22,6 +22,7 @@ import { RiskGauge } from "@/components/brand/RiskGauge";
 import { SIGNAL_CATEGORIES, SIGNAL_DEFS } from "@/components/dashboard/riskSignals";
 import { GettingStarted } from "@/components/dashboard/GettingStarted";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
 import { TransactionTrendChart } from "@/components/dashboard/TransactionTrendChart";
 import { RiskHistogramChart } from "@/components/dashboard/RiskHistogramChart";
 import { StaggerContainer, StaggerItem } from "@/components/motion/Stagger";
@@ -33,6 +34,7 @@ const DEFAULT_TAB = "overview";
 
 const DASHBOARD_TABS = [
   { value: "overview", label: "Overview" },
+  { value: "review-queue", label: "Review Queue" },
   { value: "transactions", label: "Transactions" },
   { value: "policy-signals", label: "Policy & Signals" },
   { value: "demo", label: "Demo & Testing" },
@@ -158,6 +160,7 @@ export function DashboardContent({ emailVerified, merchantName }) {
   const [metrics, setMetrics] = useState(null);
   const [trend, setTrend] = useState(null);
   const [trendLoading, setTrendLoading] = useState(true);
+  const [reviewQueueCount, setReviewQueueCount] = useState(null);
   const [settingsForm, setSettingsForm] = useState(null);
   const [simInputs, setSimInputs] = useState(null);
   const [simResult, setSimResult] = useState(null);
@@ -313,6 +316,18 @@ export function DashboardContent({ emailVerified, merchantName }) {
       .finally(() => setTrendLoading(false));
   }, []);
 
+  // Just for the tab badge - ReviewQueue fetches the full queue (with
+  // sorting) itself once its tab is actually mounted; this lightweight
+  // count keeps the badge accurate even before that tab has ever been
+  // opened. ReviewQueue reports back through onQueueChange as items are
+  // approved/kept so the badge stays live without a second poll.
+  useEffect(() => {
+    fetch("/api/review-queue")
+      .then((res) => res.json())
+      .then((data) => setReviewQueueCount(data?.summary?.count ?? null))
+      .catch(() => setReviewQueueCount(null));
+  }, []);
+
   useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
@@ -465,8 +480,13 @@ export function DashboardContent({ emailVerified, merchantName }) {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-6">
         <TabsList>
           {DASHBOARD_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
+            <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
               {tab.label}
+              {tab.value === "review-queue" && reviewQueueCount != null && reviewQueueCount > 0 && (
+                <Badge variant="warning" className="px-1.5 py-0 text-[10px]">
+                  {reviewQueueCount}
+                </Badge>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -751,6 +771,11 @@ export function DashboardContent({ emailVerified, merchantName }) {
               </StaggerItem>
 
             </StaggerContainer>
+          )}
+
+          {/* ============ REVIEW QUEUE ============ */}
+          {activeTab === "review-queue" && (
+            <ReviewQueue bounds={bounds} onQueueChange={setReviewQueueCount} />
           )}
 
           {/* ============ TRANSACTIONS ============ */}

@@ -73,6 +73,15 @@ model Transaction {
   humanOverride  Boolean  @default(false)
   overrideReason String?
   overriddenAt   DateTime?
+  // Set when a merchant looks at a flagged transaction in the Review Queue
+  // and decides the original decision should stand - a lighter-weight
+  // acknowledgment than humanOverride, which actually reverses the
+  // decision. Both reviewedAt and humanOverride remove a transaction from
+  // the Review Queue (see app/api/review-queue/route.js); only
+  // humanOverride changes actionTaken. Nullable/independent of
+  // overriddenAt so the two "this no longer needs my attention" paths
+  // (kept vs. reversed) stay distinguishable in the audit trail.
+  reviewedAt     DateTime?
   isLabeledFraud Boolean?
   source         String   @default("synthetic")
   disputedAt     DateTime?
